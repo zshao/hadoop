@@ -55,6 +55,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
+import org.apache.hadoop.fs.FSError;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileContext;
 import org.apache.hadoop.fs.FileStatus;
@@ -794,6 +795,13 @@ public class ResourceLocalizationService extends CompositeService
               .getResource().getRequest(), e.getMessage()));
             LOG.error("Local path for public localization is not found. "
                 + " May be disks failed.", e);
+          } catch (IllegalArgumentException ie) {
+            rsrc.unlock();
+            publicRsrc.handle(new ResourceFailedLocalizationEvent(request
+                .getResource().getRequest(), ie.getMessage()));
+            LOG.error("Local path for public localization is not found. "
+                + " Incorrect path. " + request.getResource().getRequest()
+                .getPath(), ie);
           } catch (RejectedExecutionException re) {
             rsrc.unlock();
             publicRsrc.handle(new ResourceFailedLocalizationEvent(request
@@ -1015,6 +1023,9 @@ public class ResourceLocalizationService extends CompositeService
         } catch (IOException e) {
           LOG.error("local path for PRIVATE localization could not be " +
             "found. Disks might have failed.", e);
+        } catch (IllegalArgumentException e) {
+          LOG.error("Inorrect path for PRIVATE localization."
+              + next.getResource().getFile(), e);
         } catch (URISyntaxException e) {
             //TODO fail? Already translated several times...
         }
@@ -1053,6 +1064,7 @@ public class ResourceLocalizationService extends CompositeService
     @SuppressWarnings("unchecked") // dispatcher not typed
     public void run() {
       Path nmPrivateCTokensPath = null;
+      Throwable exception = null;
       try {
         // Get nmPrivateDir
         nmPrivateCTokensPath =
@@ -1080,14 +1092,19 @@ public class ResourceLocalizationService extends CompositeService
               + dirsHandler.getDisksHealthReport(false));
         }
       // TODO handle ExitCodeException separately?
+      } catch (FSError fe) {
+        exception = fe;
       } catch (Exception e) {
-        LOG.info("Localizer failed", e);
-        // 3) on error, report failure to Container and signal ABORT
-        // 3.1) notify resource of failed localization
-        ContainerId cId = context.getContainerId();
-        dispatcher.getEventHandler().handle(
-            new ContainerResourceFailedEvent(cId, null, e.getMessage()));
+        exception = e;
       } finally {
+        if (exception != null) {
+          LOG.info("Localizer failed", exception);
+          // On error, report failure to Container and signal ABORT
+          // Notify resource of failed localization
+          ContainerId cId = context.getContainerId();
+          dispatcher.getEventHandler().handle(new ContainerResourceFailedEvent(
+              cId, null, exception.getMessage()));
+        }
         for (LocalizerResourceRequestEvent event : scheduled.values()) {
           event.getResource().unlock();
         }

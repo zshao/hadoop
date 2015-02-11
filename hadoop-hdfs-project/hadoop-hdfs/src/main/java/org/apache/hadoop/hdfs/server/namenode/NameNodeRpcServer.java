@@ -37,7 +37,6 @@ import java.util.Set;
 
 import com.google.common.collect.Lists;
 
-import org.apache.commons.logging.Log;
 import org.apache.hadoop.HadoopIllegalArgumentException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.crypto.CryptoProtocolVersion;
@@ -137,6 +136,7 @@ import org.apache.hadoop.hdfs.server.protocol.RemoteEditLogManifest;
 import org.apache.hadoop.hdfs.server.protocol.StorageBlockReport;
 import org.apache.hadoop.hdfs.server.protocol.StorageReceivedDeletedBlocks;
 import org.apache.hadoop.hdfs.server.protocol.StorageReport;
+import org.apache.hadoop.hdfs.StorageType;
 import org.apache.hadoop.io.EnumSetWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.ipc.ProtobufRpcEngine;
@@ -177,6 +177,7 @@ import org.apache.hadoop.tracing.TraceAdminProtocolPB;
 import org.apache.hadoop.tracing.TraceAdminProtocolServerSideTranslatorPB;
 import org.apache.hadoop.util.VersionInfo;
 import org.apache.hadoop.util.VersionUtil;
+import org.slf4j.Logger;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.BlockingService;
@@ -187,9 +188,10 @@ import com.google.protobuf.BlockingService;
  */
 class NameNodeRpcServer implements NamenodeProtocols {
   
-  private static final Log LOG = NameNode.LOG;
-  private static final Log stateChangeLog = NameNode.stateChangeLog;
-  private static final Log blockStateChangeLog = NameNode.blockStateChangeLog;
+  private static final Logger LOG = NameNode.LOG;
+  private static final Logger stateChangeLog = NameNode.stateChangeLog;
+  private static final Logger blockStateChangeLog = NameNode
+      .blockStateChangeLog;
   
   // Dependencies from other parts of NN.
   protected final FSNamesystem namesystem;
@@ -633,15 +635,16 @@ class NameNodeRpcServer implements NamenodeProtocols {
   }
 
   @Override // ClientProtocol
-  public LastBlockWithStatus append(String src, String clientName) 
-      throws IOException {
+  public LastBlockWithStatus append(String src, String clientName,
+      EnumSetWritable<CreateFlag> flag) throws IOException {
     checkNNStartup();
     String clientMachine = getClientMachine();
     if (stateChangeLog.isDebugEnabled()) {
       stateChangeLog.debug("*DIR* NameNode.append: file "
           +src+" for "+clientName+" at "+clientMachine);
     }
-    CacheEntryWithPayload cacheEntry = RetryCache.waitForCompletion(retryCache, null);
+    CacheEntryWithPayload cacheEntry = RetryCache.waitForCompletion(retryCache,
+        null);
     if (cacheEntry != null && cacheEntry.isSuccess()) {
       return (LastBlockWithStatus) cacheEntry.getPayload();
     }
@@ -649,7 +652,7 @@ class NameNodeRpcServer implements NamenodeProtocols {
     LastBlockWithStatus info = null;
     boolean success = false;
     try {
-      info = namesystem.appendFile(src, clientName, clientMachine,
+      info = namesystem.appendFile(src, clientName, clientMachine, flag.get(),
           cacheEntry != null);
       success = true;
     } finally {
@@ -1189,10 +1192,11 @@ class NameNodeRpcServer implements NamenodeProtocols {
   }
 
   @Override // ClientProtocol
-  public void setQuota(String path, long namespaceQuota, long diskspaceQuota) 
+  public void setQuota(String path, long namespaceQuota, long diskspaceQuota,
+                       StorageType type)
       throws IOException {
     checkNNStartup();
-    namesystem.setQuota(path, namespaceQuota, diskspaceQuota);
+    namesystem.setQuota(path, namespaceQuota, diskspaceQuota, type);
   }
   
   @Override // ClientProtocol
@@ -1507,7 +1511,7 @@ class NameNodeRpcServer implements NamenodeProtocols {
         IncorrectVersionException ive = new IncorrectVersionException(
             messagePrefix + " and CTime of DN ('" + dnCTime +
             "') does not match CTime of NN ('" + nnCTime + "')");
-        LOG.warn(ive);
+        LOG.warn(ive.toString(), ive);
         throw ive;
       } else {
         LOG.info(messagePrefix +

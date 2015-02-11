@@ -167,6 +167,7 @@ import org.apache.hadoop.hdfs.protocol.LastBlockWithStatus;
 import org.apache.hadoop.hdfs.protocol.LocatedBlock;
 import org.apache.hadoop.hdfs.protocol.LocatedBlocks;
 import org.apache.hadoop.hdfs.protocol.NSQuotaExceededException;
+import org.apache.hadoop.hdfs.protocol.QuotaByStorageTypeExceededException;
 import org.apache.hadoop.hdfs.protocol.RollingUpgradeInfo;
 import org.apache.hadoop.hdfs.protocol.SnapshotAccessControlException;
 import org.apache.hadoop.hdfs.protocol.SnapshotDiffReport;
@@ -211,16 +212,17 @@ import org.apache.hadoop.security.token.SecretManager.InvalidToken;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenRenewer;
 import org.apache.hadoop.tracing.SpanReceiverHost;
-import org.apache.hadoop.tracing.TraceSamplerFactory;
+import org.apache.hadoop.tracing.TraceUtils;
 import org.apache.hadoop.util.Daemon;
 import org.apache.hadoop.util.DataChecksum;
 import org.apache.hadoop.util.DataChecksum.Type;
 import org.apache.hadoop.util.Progressable;
 import org.apache.hadoop.util.Time;
-import org.htrace.Sampler;
-import org.htrace.Span;
-import org.htrace.Trace;
-import org.htrace.TraceScope;
+import org.apache.htrace.Sampler;
+import org.apache.htrace.SamplerBuilder;
+import org.apache.htrace.Span;
+import org.apache.htrace.Trace;
+import org.apache.htrace.TraceScope;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
@@ -273,9 +275,6 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
   private static final DFSHedgedReadMetrics HEDGED_READ_METRIC =
       new DFSHedgedReadMetrics();
   private static ThreadPoolExecutor HEDGED_READ_THREAD_POOL;
-  @VisibleForTesting
-  KeyProvider provider;
-  private final SpanReceiverHost spanReceiverHost;
   private final Sampler<?> traceSampler;
 
   /**
@@ -334,6 +333,8 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
     final long shortCircuitMmapCacheExpiryMs;
     final long shortCircuitMmapCacheRetryTimeout;
     final long shortCircuitCacheStaleThresholdMs;
+
+    final long keyProviderCacheExpiryMs;
 
     public Conf(Configuration conf) {
       // The hdfsTimeout is currently the same as the ipc timeout 
@@ -498,6 +499,10 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
       dfsclientSlowIoWarningThresholdMs = conf.getLong(
           DFSConfigKeys.DFS_CLIENT_SLOW_IO_WARNING_THRESHOLD_KEY,
           DFSConfigKeys.DFS_CLIENT_SLOW_IO_WARNING_THRESHOLD_DEFAULT);
+
+      keyProviderCacheExpiryMs = conf.getLong(
+          DFSConfigKeys.DFS_CLIENT_KEY_PROVIDER_CACHE_EXPIRY_MS,
+          DFSConfigKeys.DFS_CLIENT_KEY_PROVIDER_CACHE_EXPIRY_DEFAULT);
     }
 
     public boolean isUseLegacyBlockReaderLocal() {
@@ -620,8 +625,8 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
   public DFSClient(URI nameNodeUri, ClientProtocol rpcNamenode,
       Configuration conf, FileSystem.Statistics stats)
     throws IOException {
-    spanReceiverHost = SpanReceiverHost.getInstance(conf);
-    traceSampler = TraceSamplerFactory.createSampler(conf);
+    SpanReceiverHost.getInstance(conf);
+    traceSampler = new SamplerBuilder(TraceUtils.wrapHadoopConf(conf)).build();
     // Copy only the required DFSClient configuration
     this.dfsClientConf = new Conf(conf);
     if (this.dfsClientConf.useLegacyBlockReaderLocal) {
@@ -637,14 +642,6 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
     this.authority = nameNodeUri == null? "null": nameNodeUri.getAuthority();
     this.clientName = "DFSClient_" + dfsClientConf.taskId + "_" + 
         DFSUtil.getRandom().nextInt()  + "_" + Thread.currentThread().getId();
-    provider = DFSUtil.createKeyProvider(conf);
-    if (LOG.isDebugEnabled()) {
-      if (provider == null) {
-        LOG.debug("No KeyProvider found.");
-      } else {
-        LOG.debug("Found KeyProvider: " + provider.toString());
-      }
-    }
     int numResponseToDrop = conf.getInt(
         DFSConfigKeys.DFS_CLIENT_TEST_DROP_NAMENODE_RESPONSE_NUM_KEY,
         DFSConfigKeys.DFS_CLIENT_TEST_DROP_NAMENODE_RESPONSE_NUM_DEFAULT);
@@ -960,18 +957,12 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
    */
   @Override
   public synchronized void close() throws IOException {
-    try {
-      if(clientRunning) {
-        closeAllFilesBeingWritten(false);
-        clientRunning = false;
-        getLeaseRenewer().closeClient(this);
-        // close connections to the namenode
-        closeConnectionToNamenode();
-      }
-    } finally {
-      if (provider != null) {
-        provider.close();
-      }
+    if(clientRunning) {
+      closeAllFilesBeingWritten(false);
+      clientRunning = false;
+      getLeaseRenewer().closeClient(this);
+      // close connections to the namenode
+      closeConnectionToNamenode();
     }
   }
 
@@ -1381,6 +1372,7 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
       feInfo) throws IOException {
     TraceScope scope = Trace.startSpan("decryptEDEK", traceSampler);
     try {
+      KeyProvider provider = getKeyProvider();
       if (provider == null) {
         throw new IOException("No KeyProvider is configured, cannot access" +
             " an encrypted file");
@@ -1656,9 +1648,8 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
    * @param checksumOpt checksum options
    * 
    * @return output stream
-   * 
-   * @see ClientProtocol#create(String, FsPermission, String, EnumSetWritable,
-   * boolean, short, long) for detailed description of exceptions thrown
+   *
+   * @see ClientProtocol#create for detailed description of exceptions thrown
    */
   public DFSOutputStream create(String src, 
                              FsPermission permission,
@@ -1732,7 +1723,7 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
         }
         return null;
       }
-      return callAppend(src, buffersize, progress);
+      return callAppend(src, buffersize, flag, progress);
     }
     return null;
   }
@@ -1810,11 +1801,16 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
   }
 
   /** Method to get stream returned by append call */
-  private DFSOutputStream callAppend(String src,
-      int buffersize, Progressable progress) throws IOException {
-    LastBlockWithStatus lastBlockWithStatus = null;
+  private DFSOutputStream callAppend(String src, int buffersize,
+      EnumSet<CreateFlag> flag, Progressable progress) throws IOException {
+    CreateFlag.validateForAppend(flag);
     try {
-      lastBlockWithStatus = namenode.append(src, clientName);
+      LastBlockWithStatus blkWithStatus = namenode.append(src, clientName,
+          new EnumSetWritable<>(flag, CreateFlag.class));
+      return DFSOutputStream.newStreamForAppend(this, src,
+          flag.contains(CreateFlag.NEW_BLOCK),
+          buffersize, progress, blkWithStatus.getLastBlock(),
+          blkWithStatus.getFileStatus(), dfsClientConf.createChecksum());
     } catch(RemoteException re) {
       throw re.unwrapRemoteException(AccessControlException.class,
                                      FileNotFoundException.class,
@@ -1824,10 +1820,6 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
                                      UnresolvedPathException.class,
                                      SnapshotAccessControlException.class);
     }
-    HdfsFileStatus newStat = lastBlockWithStatus.getFileStatus();
-    return DFSOutputStream.newStreamForAppend(this, src, buffersize, progress,
-        lastBlockWithStatus.getLastBlock(), newStat,
-        dfsClientConf.createChecksum());
   }
   
   /**
@@ -1835,23 +1827,25 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
    * 
    * @param src file name
    * @param buffersize buffer size
+   * @param flag indicates whether to append data to a new block instead of
+   *             the last block
    * @param progress for reporting write-progress; null is acceptable.
    * @param statistics file system statistics; null is acceptable.
    * @return an output stream for writing into the file
    * 
-   * @see ClientProtocol#append(String, String) 
+   * @see ClientProtocol#append(String, String, EnumSetWritable)
    */
   public HdfsDataOutputStream append(final String src, final int buffersize,
-      final Progressable progress, final FileSystem.Statistics statistics
-      ) throws IOException {
-    final DFSOutputStream out = append(src, buffersize, progress);
+      EnumSet<CreateFlag> flag, final Progressable progress,
+      final FileSystem.Statistics statistics) throws IOException {
+    final DFSOutputStream out = append(src, buffersize, flag, progress);
     return createWrappedOutputStream(out, statistics, out.getInitialLen());
   }
 
-  private DFSOutputStream append(String src, int buffersize, Progressable progress) 
-      throws IOException {
+  private DFSOutputStream append(String src, int buffersize,
+      EnumSet<CreateFlag> flag, Progressable progress) throws IOException {
     checkOpen();
-    final DFSOutputStream result = callAppend(src, buffersize, progress);
+    final DFSOutputStream result = callAppend(src, buffersize, flag, progress);
     beginFileLease(result.getFileId(), result);
     return result;
   }
@@ -1938,7 +1932,7 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
 
   /**
    * Move blocks from src to trg and delete src
-   * See {@link ClientProtocol#concat(String, String [])}. 
+   * See {@link ClientProtocol#concat}.
    */
   public void concat(String trg, String [] srcs) throws IOException {
     checkOpen();
@@ -1980,7 +1974,7 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
 
   /**
    * Truncate a file to an indicated size
-   * See {@link ClientProtocol#truncate(String, long)}. 
+   * See {@link ClientProtocol#truncate}.
    */
   public boolean truncate(String src, long newLength) throws IOException {
     checkOpen();
@@ -3005,7 +2999,7 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
   
   /**
    * Get {@link ContentSummary} rooted at the specified directory.
-   * @param path The string representation of the path
+   * @param src The string representation of the path
    * 
    * @see ClientProtocol#getContentSummary(String)
    */
@@ -3024,7 +3018,7 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
 
   /**
    * Sets or resets quotas for a directory.
-   * @see ClientProtocol#setQuota(String, long, long)
+   * @see ClientProtocol#setQuota(String, long, long, StorageType)
    */
   void setQuota(String src, long namespaceQuota, long diskspaceQuota) 
       throws IOException {
@@ -3040,7 +3034,8 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
     }
     TraceScope scope = getPathTraceScope("setQuota", src);
     try {
-      namenode.setQuota(src, namespaceQuota, diskspaceQuota);
+      // Pass null as storage type for traditional space/namespace quota.
+      namenode.setQuota(src, namespaceQuota, diskspaceQuota, null);
     } catch(RemoteException re) {
       throw re.unwrapRemoteException(AccessControlException.class,
                                      FileNotFoundException.class,
@@ -3053,6 +3048,34 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
     }
   }
 
+  /**
+   * Sets or resets quotas by storage type for a directory.
+   * @see ClientProtocol#setQuota(String, long, long, StorageType)
+   */
+  void setQuotaByStorageType(String src, StorageType type, long spaceQuota)
+      throws IOException {
+    if (spaceQuota <= 0 && spaceQuota != HdfsConstants.QUOTA_DONT_SET &&
+        spaceQuota != HdfsConstants.QUOTA_RESET) {
+      throw new IllegalArgumentException("Invalid values for quota :" +
+        spaceQuota);
+    }
+    if (type == null) {
+      throw new IllegalArgumentException("Invalid storage type(null)");
+    }
+    if (!type.supportTypeQuota()) {
+      throw new IllegalArgumentException("Don't support Quota for storage type : "
+        + type.toString());
+    }
+    try {
+      namenode.setQuota(src, HdfsConstants.QUOTA_DONT_SET, spaceQuota, type);
+    } catch (RemoteException re) {
+      throw re.unwrapRemoteException(AccessControlException.class,
+        FileNotFoundException.class,
+        QuotaByStorageTypeExceededException.class,
+        UnresolvedPathException.class,
+        SnapshotAccessControlException.class);
+    }
+  }
   /**
    * set the modification and access time of a file
    * 
@@ -3467,12 +3490,16 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
   }
 
   public KeyProvider getKeyProvider() {
-    return provider;
+    return clientContext.getKeyProviderCache().get(conf);
   }
 
   @VisibleForTesting
-  public void setKeyProvider(KeyProviderCryptoExtension provider) {
-    this.provider = provider;
+  public void setKeyProvider(KeyProvider provider) {
+    try {
+      clientContext.getKeyProviderCache().setKeyProvider(conf, provider);
+    } catch (IOException e) {
+     LOG.error("Could not set KeyProvider !!", e);
+    }
   }
 
   /**

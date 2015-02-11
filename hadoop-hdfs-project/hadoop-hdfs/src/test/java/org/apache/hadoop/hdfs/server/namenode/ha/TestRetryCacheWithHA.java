@@ -71,7 +71,7 @@ import org.apache.hadoop.hdfs.protocol.LocatedBlock;
 import org.apache.hadoop.hdfs.protocol.LocatedBlocks;
 import org.apache.hadoop.hdfs.protocol.CacheDirectiveEntry;
 import org.apache.hadoop.hdfs.protocol.CacheDirectiveInfo;
-import org.apache.hadoop.hdfs.server.blockmanagement.BlockInfoUnderConstruction;
+import org.apache.hadoop.hdfs.server.blockmanagement.BlockInfoContiguousUnderConstruction;
 import org.apache.hadoop.hdfs.server.namenode.FSNamesystem;
 import org.apache.hadoop.hdfs.server.namenode.INodeFile;
 import org.apache.hadoop.hdfs.server.namenode.snapshot.SnapshotTestHelper;
@@ -163,7 +163,7 @@ public class TestRetryCacheWithHA {
     FSNamesystem fsn0 = cluster.getNamesystem(0);
     LightWeightCache<CacheEntry, CacheEntry> cacheSet = 
         (LightWeightCache<CacheEntry, CacheEntry>) fsn0.getRetryCache().getCacheSet();
-    assertEquals(24, cacheSet.size());
+    assertEquals(25, cacheSet.size());
     
     Map<CacheEntry, CacheEntry> oldEntries = 
         new HashMap<CacheEntry, CacheEntry>();
@@ -184,7 +184,7 @@ public class TestRetryCacheWithHA {
     FSNamesystem fsn1 = cluster.getNamesystem(1);
     cacheSet = (LightWeightCache<CacheEntry, CacheEntry>) fsn1
         .getRetryCache().getCacheSet();
-    assertEquals(24, cacheSet.size());
+    assertEquals(25, cacheSet.size());
     iter = cacheSet.iterator();
     while (iter.hasNext()) {
       CacheEntry entry = iter.next();
@@ -438,7 +438,8 @@ public class TestRetryCacheWithHA {
 
     @Override
     void invoke() throws Exception {
-      lbk = client.getNamenode().append(fileName, client.getClientName());
+      lbk = client.getNamenode().append(fileName, client.getClientName(),
+          new EnumSetWritable<>(EnumSet.of(CreateFlag.APPEND)));
     }
     
     // check if the inode of the file is under construction
@@ -701,7 +702,8 @@ public class TestRetryCacheWithHA {
       final Path filePath = new Path(file);
       DFSTestUtil.createFile(dfs, filePath, BlockSize, DataNodes, 0);
       // append to the file and leave the last block under construction
-      out = this.client.append(file, BlockSize, null, null);
+      out = this.client.append(file, BlockSize, EnumSet.of(CreateFlag.APPEND),
+          null, null);
       byte[] appendContent = new byte[100];
       new Random().nextBytes(appendContent);
       out.write(appendContent);
@@ -741,8 +743,8 @@ public class TestRetryCacheWithHA {
     boolean checkNamenodeBeforeReturn() throws Exception {
       INodeFile fileNode = cluster.getNamesystem(0).getFSDirectory()
           .getINode4Write(file).asFile();
-      BlockInfoUnderConstruction blkUC = 
-          (BlockInfoUnderConstruction) (fileNode.getBlocks())[1];
+      BlockInfoContiguousUnderConstruction blkUC =
+          (BlockInfoContiguousUnderConstruction) (fileNode.getBlocks())[1];
       int datanodeNum = blkUC.getExpectedStorageLocations().length;
       for (int i = 0; i < CHECKTIMES && datanodeNum != 2; i++) {
         Thread.sleep(1000);

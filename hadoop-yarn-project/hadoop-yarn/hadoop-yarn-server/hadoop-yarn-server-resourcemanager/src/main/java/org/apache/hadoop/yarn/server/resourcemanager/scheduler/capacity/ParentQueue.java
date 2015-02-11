@@ -49,6 +49,7 @@ import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.nodelabels.CommonNodeLabelsManager;
+import org.apache.hadoop.yarn.security.AccessType;
 import org.apache.hadoop.yarn.server.resourcemanager.nodelabels.RMNodeLabelsManager;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainerEventType;
@@ -107,7 +108,7 @@ public class ParentQueue extends AbstractCSQueue {
     
     QueueState state = cs.getConfiguration().getState(getQueuePath());
 
-    Map<QueueACL, AccessControlList> acls = 
+    Map<AccessType, AccessControlList> acls = 
       cs.getConfiguration().getAcls(getQueuePath());
 
     setupQueueConfigs(cs.getClusterResource(), capacity, absoluteCapacity,
@@ -124,7 +125,7 @@ public class ParentQueue extends AbstractCSQueue {
 
   synchronized void setupQueueConfigs(Resource clusterResource, float capacity,
       float absoluteCapacity, float maximumCapacity, float absoluteMaxCapacity,
-      QueueState state, Map<QueueACL, AccessControlList> acls,
+      QueueState state, Map<AccessType, AccessControlList> acls,
       Set<String> accessibleLabels, String defaultLabelExpression,
       Map<String, Float> nodeLabelCapacities,
       Map<String, Float> maximumCapacitiesByLabel, 
@@ -132,9 +133,9 @@ public class ParentQueue extends AbstractCSQueue {
     super.setupQueueConfigs(clusterResource, capacity, absoluteCapacity,
         maximumCapacity, absoluteMaxCapacity, state, acls, accessibleLabels,
         defaultLabelExpression, nodeLabelCapacities, maximumCapacitiesByLabel,
-        reservationContinueLooking);
+        reservationContinueLooking, maximumAllocation);
    StringBuilder aclsString = new StringBuilder();
-    for (Map.Entry<QueueACL, AccessControlList> e : acls.entrySet()) {
+    for (Map.Entry<AccessType, AccessControlList> e : acls.entrySet()) {
       aclsString.append(e.getKey() + ":" + e.getValue().getAclString());
     }
 
@@ -158,7 +159,7 @@ public class ParentQueue extends AbstractCSQueue {
   }
 
   private static float PRECISION = 0.0005f; // 0.05% precision
-  void setChildQueues(Collection<CSQueue> childQueues) {
+  synchronized void setChildQueues(Collection<CSQueue> childQueues) {
     // Validate
     float childCapacities = 0;
     for (CSQueue queue : childQueues) {
@@ -256,7 +257,7 @@ public class ParentQueue extends AbstractCSQueue {
         "numChildQueue= " + childQueues.size() + ", " + 
         "capacity=" + capacity + ", " +  
         "absoluteCapacity=" + absoluteCapacity + ", " +
-        "usedResources=" + usedResources + 
+        "usedResources=" + queueUsage.getUsed() + 
         "usedCapacity=" + getUsedCapacity() + ", " + 
         "numApps=" + getNumApplications() + ", " + 
         "numContainers=" + getNumContainers();
@@ -463,7 +464,7 @@ public class ParentQueue extends AbstractCSQueue {
             " queue=" + getQueueName() + 
             " usedCapacity=" + getUsedCapacity() +
             " absoluteUsedCapacity=" + getAbsoluteUsedCapacity() +
-            " used=" + usedResources + 
+            " used=" + queueUsage.getUsed() + 
             " cluster=" + clusterResource);
 
       } else {
@@ -506,19 +507,16 @@ public class ParentQueue extends AbstractCSQueue {
     
     boolean canAssign = true;
     for (String label : labelCanAccess) {
-      if (!usedResourcesByNodeLabels.containsKey(label)) {
-        usedResourcesByNodeLabels.put(label, Resources.createResource(0));
-      }
       float currentAbsoluteLabelUsedCapacity =
           Resources.divide(resourceCalculator, clusterResource,
-              usedResourcesByNodeLabels.get(label),
+              queueUsage.getUsed(label),
               labelManager.getResourceByLabel(label, clusterResource));
       // if any of the label doesn't beyond limit, we can allocate on this node
       if (currentAbsoluteLabelUsedCapacity >= 
             getAbsoluteMaximumCapacityByNodeLabel(label)) {
         if (LOG.isDebugEnabled()) {
-          LOG.debug(getQueueName() + " used=" + usedResources
-              + " current-capacity (" + usedResourcesByNodeLabels.get(label) + ") "
+          LOG.debug(getQueueName() + " used=" + queueUsage.getUsed()
+              + " current-capacity (" + queueUsage.getUsed(label) + ") "
               + " >= max-capacity ("
               + labelManager.getResourceByLabel(label, clusterResource) + ")");
         }
@@ -540,16 +538,16 @@ public class ParentQueue extends AbstractCSQueue {
           .getReservedMB(), getMetrics().getReservedVirtualCores());
       float capacityWithoutReservedCapacity = Resources.divide(
           resourceCalculator, clusterResource,
-          Resources.subtract(usedResources, reservedResources),
+          Resources.subtract(queueUsage.getUsed(), reservedResources),
           clusterResource);
 
       if (capacityWithoutReservedCapacity <= absoluteMaxCapacity) {
         if (LOG.isDebugEnabled()) {
           LOG.debug("parent: try to use reserved: " + getQueueName()
-            + " usedResources: " + usedResources.getMemory()
+            + " usedResources: " + queueUsage.getUsed().getMemory()
             + " clusterResources: " + clusterResource.getMemory()
             + " reservedResources: " + reservedResources.getMemory()
-            + " currentCapacity " + ((float) usedResources.getMemory())
+            + " currentCapacity " + ((float) queueUsage.getUsed().getMemory())
             / clusterResource.getMemory()
             + " potentialNewWithoutReservedCapacity: "
             + capacityWithoutReservedCapacity + " ( " + " max-capacity: "
@@ -577,7 +575,7 @@ public class ParentQueue extends AbstractCSQueue {
     printChildQueues();
 
     // Try to assign to most 'under-served' sub-queue
-    for (Iterator<CSQueue> iter=childQueues.iterator(); iter.hasNext();) {
+    for (Iterator<CSQueue> iter = childQueues.iterator(); iter.hasNext();) {
       CSQueue childQueue = iter.next();
       if(LOG.isDebugEnabled()) {
         LOG.debug("Trying to assign to queue: " + childQueue.getQueuePath()
@@ -645,28 +643,28 @@ public class ParentQueue extends AbstractCSQueue {
             " queue=" + getQueueName() + 
             " usedCapacity=" + getUsedCapacity() +
             " absoluteUsedCapacity=" + getAbsoluteUsedCapacity() +
-            " used=" + usedResources + 
+            " used=" + queueUsage.getUsed() + 
             " cluster=" + clusterResource);
-      }
 
-      // Note that this is using an iterator on the childQueues so this can't be
-      // called if already within an iterator for the childQueues. Like  
-      // from assignContainersToChildQueues.
-      if (sortQueues) {
-        // reinsert the updated queue
-        for (Iterator<CSQueue> iter=childQueues.iterator(); iter.hasNext();) {
-          CSQueue csqueue = iter.next();
-          if(csqueue.equals(completedChildQueue))
-          {
-            iter.remove();
-            LOG.info("Re-sorting completed queue: " + csqueue.getQueuePath() + 
-                " stats: " + csqueue);
-            childQueues.add(csqueue);
-            break;
+        // Note that this is using an iterator on the childQueues so this can't
+        // be called if already within an iterator for the childQueues. Like
+        // from assignContainersToChildQueues.
+        if (sortQueues) {
+          // reinsert the updated queue
+          for (Iterator<CSQueue> iter = childQueues.iterator();
+               iter.hasNext();) {
+            CSQueue csqueue = iter.next();
+            if(csqueue.equals(completedChildQueue)) {
+              iter.remove();
+              LOG.info("Re-sorting completed queue: " + csqueue.getQueuePath() +
+                  " stats: " + csqueue);
+              childQueues.add(csqueue);
+              break;
+            }
           }
         }
       }
-      
+
       // Inform the parent
       if (parent != null) {
         // complete my parent
@@ -718,7 +716,7 @@ public class ParentQueue extends AbstractCSQueue {
   }
 
   @Override
-  public void collectSchedulerApplications(
+  public synchronized void collectSchedulerApplications(
       Collection<ApplicationAttemptId> apps) {
     for (CSQueue queue : childQueues) {
       queue.collectSchedulerApplications(apps);
@@ -735,7 +733,7 @@ public class ParentQueue extends AbstractCSQueue {
           .getResource(), node.getLabels());
       LOG.info("movedContainer" + " queueMoveIn=" + getQueueName()
           + " usedCapacity=" + getUsedCapacity() + " absoluteUsedCapacity="
-          + getAbsoluteUsedCapacity() + " used=" + usedResources + " cluster="
+          + getAbsoluteUsedCapacity() + " used=" + queueUsage.getUsed() + " cluster="
           + clusterResource);
       // Inform the parent
       if (parent != null) {
@@ -755,7 +753,7 @@ public class ParentQueue extends AbstractCSQueue {
           node.getLabels());
       LOG.info("movedContainer" + " queueMoveOut=" + getQueueName()
           + " usedCapacity=" + getUsedCapacity() + " absoluteUsedCapacity="
-          + getAbsoluteUsedCapacity() + " used=" + usedResources + " cluster="
+          + getAbsoluteUsedCapacity() + " used=" + queueUsage.getUsed() + " cluster="
           + clusterResource);
       // Inform the parent
       if (parent != null) {

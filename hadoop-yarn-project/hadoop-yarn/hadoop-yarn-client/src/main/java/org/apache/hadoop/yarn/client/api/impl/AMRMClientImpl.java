@@ -421,6 +421,8 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
     checkLocalityRelaxationConflict(req.getPriority(), dedupedRacks, true);
     checkLocalityRelaxationConflict(req.getPriority(), inferredRacks,
         req.getRelaxLocality());
+    // check if the node label expression specified is valid
+    checkNodeLabelExpression(req);
 
     if (req.getNodes() != null) {
       HashSet<String> dedupedNodes = new HashSet<String>(req.getNodes());
@@ -586,6 +588,37 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
       }
   }
   
+  /**
+   * Valid if a node label expression specified on container request is valid or
+   * not
+   * 
+   * @param containerRequest
+   */
+  private void checkNodeLabelExpression(T containerRequest) {
+    String exp = containerRequest.getNodeLabelExpression();
+    
+    if (null == exp || exp.isEmpty()) {
+      return;
+    }
+
+    // Don't support specifying >= 2 node labels in a node label expression now
+    if (exp.contains("&&") || exp.contains("||")) {
+      throw new InvalidContainerRequestException(
+          "Cannot specify more than two node labels"
+              + " in a single node label expression");
+    }
+    
+    // Don't allow specify node label against ANY request
+    if ((containerRequest.getRacks() != null && 
+        (!containerRequest.getRacks().isEmpty()))
+        || 
+        (containerRequest.getNodes() != null && 
+        (!containerRequest.getNodes().isEmpty()))) {
+      throw new InvalidContainerRequestException(
+          "Cannot specify node label with rack and node");
+    }
+  }
+  
   private void addResourceRequestToAsk(ResourceRequest remoteRequest) {
     // This code looks weird but is needed because of the following scenario.
     // A ResourceRequest is removed from the remoteRequestTable. A 0 container 
@@ -640,7 +673,9 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
       resourceRequestInfo.containerRequests.add(req);
     }
     
-    resourceRequestInfo.remoteRequest.setNodeLabelExpression(labelExpression);
+    if (ResourceRequest.ANY.equals(resourceName)) {
+      resourceRequestInfo.remoteRequest.setNodeLabelExpression(labelExpression);
+    }
 
     // Note this down for next interaction with ResourceManager
     addResourceRequestToAsk(resourceRequestInfo.remoteRequest);
@@ -755,11 +790,11 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
         new org.apache.hadoop.security.token.Token<AMRMTokenIdentifier>(token
           .getIdentifier().array(), token.getPassword().array(), new Text(
           token.getKind()), new Text(token.getService()));
-    amrmToken.setService(ClientRMProxy.getAMRMTokenService(getConfig()));
+    // Preserve the token service sent by the RM when adding the token
+    // to ensure we replace the previous token setup by the RM.
+    // Afterwards we can update the service address for the RPC layer.
     UserGroupInformation currentUGI = UserGroupInformation.getCurrentUser();
-    if (UserGroupInformation.isSecurityEnabled()) {
-      currentUGI = UserGroupInformation.getLoginUser();
-    }
     currentUGI.addToken(amrmToken);
+    amrmToken.setService(ClientRMProxy.getAMRMTokenService(getConfig()));
   }
 }

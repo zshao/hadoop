@@ -530,11 +530,19 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
 
       return container.getResource();
     } else {
+      if (!FairScheduler.fitsInMaxShare(getQueue(), capability)) {
+        return Resources.none();
+      }
+
       // The desired container won't fit here, so reserve
       reserve(request.getPriority(), node, container, reserved);
 
       return FairScheduler.CONTAINER_RESERVED;
     }
+  }
+
+  private boolean hasNodeOrRackLocalRequests(Priority priority) {
+    return getResourceRequests(priority).size() > 1;
   }
 
   private Resource assignContainer(FSSchedulerNode node, boolean reserved) {
@@ -611,10 +619,13 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
           continue;
         }
 
-        if (offSwitchRequest != null && offSwitchRequest.getNumContainers() != 0
-            && allowedLocality.equals(NodeType.OFF_SWITCH)) {
-          return assignContainer(node, offSwitchRequest,
-              NodeType.OFF_SWITCH, reserved);
+        if (offSwitchRequest != null &&
+            offSwitchRequest.getNumContainers() != 0) {
+          if (!hasNodeOrRackLocalRequests(priority) ||
+              allowedLocality.equals(NodeType.OFF_SWITCH)) {
+            return assignContainer(
+                node, offSwitchRequest, NodeType.OFF_SWITCH, reserved);
+          }
         }
       }
     }

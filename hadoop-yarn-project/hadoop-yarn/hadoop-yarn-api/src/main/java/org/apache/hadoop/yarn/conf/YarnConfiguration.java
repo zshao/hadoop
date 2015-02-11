@@ -435,6 +435,8 @@ public class YarnConfiguration extends Configuration {
   public static final String DEFAULT_RM_CONFIGURATION_PROVIDER_CLASS =
       "org.apache.hadoop.yarn.LocalConfigurationProvider";
 
+  public static final String YARN_AUTHORIZATION_PROVIDER = YARN_PREFIX
+      + "authorization-provider";
   private static final List<String> RM_SERVICES_ADDRESS_CONF_KEYS_HTTP =
       Collections.unmodifiableList(Arrays.asList(
           RM_ADDRESS,
@@ -1000,7 +1002,16 @@ public class YarnConfiguration extends Configuration {
 
   public static final long DEFAULT_NM_LINUX_CONTAINER_CGROUPS_DELETE_TIMEOUT =
       1000;
-  
+
+  /**
+   * Delay between attempts to remove linux cgroup.
+   */
+  public static final String NM_LINUX_CONTAINER_CGROUPS_DELETE_DELAY =
+      NM_PREFIX + "linux-container-executor.cgroups.delete-delay-ms";
+
+  public static final long DEFAULT_NM_LINUX_CONTAINER_CGROUPS_DELETE_DELAY =
+      20;
+
   /** 
   /* The Windows group that the windows-secure-container-executor should run as.
   */
@@ -1384,6 +1395,13 @@ public class YarnConfiguration extends Configuration {
 
   public static final long
       DEFAULT_TIMELINE_SERVICE_CLIENT_RETRY_INTERVAL_MS = 1000;
+
+  /** Timeline client policy for whether connections are fatal */
+  public static final String TIMELINE_SERVICE_CLIENT_BEST_EFFORT =
+      TIMELINE_SERVICE_CLIENT_PREFIX + "best-effort";
+
+  public static final boolean
+      DEFAULT_TIMELINE_SERVICE_CLIENT_BEST_EFFORT = false;
 
   /** Flag to enable recovery of timeline service */
   public static final String TIMELINE_SERVICE_RECOVERY_ENABLED =

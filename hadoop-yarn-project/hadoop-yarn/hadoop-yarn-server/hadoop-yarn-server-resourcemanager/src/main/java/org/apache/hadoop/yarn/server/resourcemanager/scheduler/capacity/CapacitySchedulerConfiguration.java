@@ -40,8 +40,10 @@ import org.apache.hadoop.yarn.api.records.QueueState;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.nodelabels.CommonNodeLabelsManager;
+import org.apache.hadoop.yarn.security.AccessType;
 import org.apache.hadoop.yarn.server.resourcemanager.nodelabels.RMNodeLabelsManager;
 import org.apache.hadoop.yarn.server.resourcemanager.reservation.ReservationSchedulerConfiguration;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerUtils;
 import org.apache.hadoop.yarn.util.resource.DefaultResourceCalculator;
 import org.apache.hadoop.yarn.util.resource.ResourceCalculator;
 import org.apache.hadoop.yarn.util.resource.Resources;
@@ -107,6 +109,13 @@ public class CapacitySchedulerConfiguration extends ReservationSchedulerConfigur
   
   @Private
   public static final boolean DEFAULT_RESERVE_CONT_LOOK_ALL_NODES = true;
+
+  @Private
+  public static final String MAXIMUM_ALLOCATION_MB = "maximum-allocation-mb";
+
+  @Private
+  public static final String MAXIMUM_ALLOCATION_VCORES =
+      "maximum-allocation-vcores";
 
   @Private
   public static final int DEFAULT_MAXIMUM_SYSTEM_APPLICATIIONS = 10000;
@@ -179,6 +188,9 @@ public class CapacitySchedulerConfiguration extends ReservationSchedulerConfigur
 
   @Private
   public static final boolean DEFAULT_ENABLE_QUEUE_MAPPING_OVERRIDE = false;
+
+  @Private
+  public static final String QUEUE_PREEMPTION_DISABLED = "disable_preemption";
 
   @Private
   public static class QueueMapping {
@@ -520,11 +532,11 @@ public class CapacitySchedulerConfiguration extends ReservationSchedulerConfigur
     set(queuePrefix + getAclKey(acl), aclString);
   }
 
-  public Map<QueueACL, AccessControlList> getAcls(String queue) {
-    Map<QueueACL, AccessControlList> acls =
-      new HashMap<QueueACL, AccessControlList>();
+  public Map<AccessType, AccessControlList> getAcls(String queue) {
+    Map<AccessType, AccessControlList> acls =
+      new HashMap<AccessType, AccessControlList>();
     for (QueueACL acl : QueueACL.values()) {
-      acls.put(acl, getAcl(queue, acl));
+      acls.put(SchedulerUtils.toAccessType(acl), getAcl(queue, acl));
     }
     return acls;
   }
@@ -575,6 +587,48 @@ public class CapacitySchedulerConfiguration extends ReservationSchedulerConfigur
         YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES,
         YarnConfiguration.DEFAULT_RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES);
     return Resources.createResource(maximumMemory, maximumCores);
+  }
+
+  /**
+   * Get the per queue setting for the maximum limit to allocate to
+   * each container request.
+   *
+   * @param queue
+   *          name of the queue
+   * @return setting specified per queue else falls back to the cluster setting
+   */
+  public Resource getMaximumAllocationPerQueue(String queue) {
+    String queuePrefix = getQueuePrefix(queue);
+    int maxAllocationMbPerQueue = getInt(queuePrefix + MAXIMUM_ALLOCATION_MB,
+        (int)UNDEFINED);
+    int maxAllocationVcoresPerQueue = getInt(
+        queuePrefix + MAXIMUM_ALLOCATION_VCORES, (int)UNDEFINED);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("max alloc mb per queue for " + queue + " is "
+          + maxAllocationMbPerQueue);
+      LOG.debug("max alloc vcores per queue for " + queue + " is "
+          + maxAllocationVcoresPerQueue);
+    }
+    Resource clusterMax = getMaximumAllocation();
+    if (maxAllocationMbPerQueue == (int)UNDEFINED) {
+      LOG.info("max alloc mb per queue for " + queue + " is undefined");
+      maxAllocationMbPerQueue = clusterMax.getMemory();
+    }
+    if (maxAllocationVcoresPerQueue == (int)UNDEFINED) {
+       LOG.info("max alloc vcore per queue for " + queue + " is undefined");
+      maxAllocationVcoresPerQueue = clusterMax.getVirtualCores();
+    }
+    Resource result = Resources.createResource(maxAllocationMbPerQueue,
+        maxAllocationVcoresPerQueue);
+    if (maxAllocationMbPerQueue > clusterMax.getMemory()
+        || maxAllocationVcoresPerQueue > clusterMax.getVirtualCores()) {
+      throw new IllegalArgumentException(
+          "Queue maximum allocation cannot be larger than the cluster setting"
+          + " for queue " + queue
+          + " max allocation per queue: " + result
+          + " cluster setting: " + clusterMax);
+    }
+    return result;
   }
 
   public boolean getEnableUserMetrics() {
@@ -801,5 +855,33 @@ public class CapacitySchedulerConfiguration extends ReservationSchedulerConfigur
         getLong(getQueuePrefix(queue) + RESERVATION_ENFORCEMENT_WINDOW,
             DEFAULT_RESERVATION_ENFORCEMENT_WINDOW);
     return enforcementWindow;
+  }
+
+  /**
+   * Sets the <em>disable_preemption</em> property in order to indicate
+   * whether or not container preemption will be disabled for the specified
+   * queue.
+   * 
+   * @param queue queue path
+   * @param preemptionDisabled true if preemption is disabled on queue
+   */
+  public void setPreemptionDisabled(String queue, boolean preemptionDisabled) {
+    setBoolean(getQueuePrefix(queue) + QUEUE_PREEMPTION_DISABLED,
+               preemptionDisabled); 
+  }
+
+  /**
+   * Indicates whether preemption is disabled on the specified queue.
+   * 
+   * @param queue queue path to query
+   * @param defaultVal used as default if the <em>disable_preemption</em>
+   * is not set in the configuration
+   * @return true if preemption is disabled on <em>queue</em>, false otherwise
+   */
+  public boolean getPreemptionDisabled(String queue, boolean defaultVal) {
+    boolean preemptionDisabled =
+        getBoolean(getQueuePrefix(queue) + QUEUE_PREEMPTION_DISABLED,
+                   defaultVal);
+    return preemptionDisabled;
   }
 }

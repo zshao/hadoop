@@ -31,16 +31,6 @@
 </property>
 
 <property>
-  <name>dfs.namenode.logging.level</name>
-  <value>info</value>
-  <description>
-    The logging level for dfs namenode. Other values are "dir" (trace
-    namespace mutations), "block" (trace block under/over replications
-    and block creations/deletions), or "all".
-  </description>
-</property>
-
-<property>
   <name>dfs.namenode.rpc-address</name>
   <value></value>
   <description>
@@ -151,14 +141,6 @@
     It can also be specified per name node or name service for HA/Federation.
     This is useful for making the name node HTTP server listen on all
     interfaces by setting it to 0.0.0.0.
-  </description>
-</property>
-
-<property>
-  <name>dfs.https.enable</name>
-  <value>false</value>
-  <description>
-    Deprecated. Use "dfs.http.policy" instead.
   </description>
 </property>
 
@@ -1245,14 +1227,6 @@
 </property>
 
 <property>
-  <name>dfs.support.append</name>
-  <value>true</value>
-  <description>
-    Does HDFS allow appends to files?
-  </description>
-</property>
-
-<property>
   <name>dfs.client.use.datanode.hostname</name>
   <value>false</value>
   <description>Whether clients should use datanode hostnames when
@@ -1311,6 +1285,15 @@
 <property>
   <name>dfs.secondary.namenode.kerberos.internal.spnego.principal</name>
   <value>${dfs.web.authentication.kerberos.principal}</value>
+</property>
+
+<property>
+  <name>dfs.namenode.kerberos.principal.pattern</name>
+  <value>*</value>
+  <description>
+    A client-side RegEx that can be configured to control
+    allowed realms to authenticate with (useful in cross-realm env.)
+  </description>
 </property>
 
 <property>

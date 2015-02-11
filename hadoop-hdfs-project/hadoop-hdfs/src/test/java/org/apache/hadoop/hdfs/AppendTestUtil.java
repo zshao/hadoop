@@ -18,9 +18,11 @@
 package org.apache.hadoop.hdfs;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Arrays;
 import java.util.Random;
 
 import org.apache.commons.logging.Log;
@@ -80,6 +82,27 @@ public class AppendTestUtil {
     return b;
   }
 
+  /** @return a random file partition of length n. */
+  public static int[] randomFilePartition(int n, int parts) {
+    int[] p = new int[parts];
+    for(int i = 0; i < p.length; i++) {
+      p[i] = nextInt(n - i - 1) + 1;
+    }
+    Arrays.sort(p);
+    for(int i = 1; i < p.length; i++) {
+      if (p[i] <= p[i - 1]) {
+        p[i] = p[i - 1] + 1;
+      }
+    }
+    
+    LOG.info("partition=" + Arrays.toString(p));
+    assertTrue("i=0", p[0] > 0 && p[0] < n);
+    for(int i = 1; i < p.length; i++) {
+      assertTrue("i=" + i, p[i] > p[i - 1] && p[i] < n);
+    }
+    return p;
+  }
+
   static void sleep(long ms) {
     try {
       Thread.sleep(ms);
@@ -136,6 +159,22 @@ public class AppendTestUtil {
     }
   }
 
+  public static void check(DistributedFileSystem fs, Path p, int position,
+      int length) throws IOException {
+    byte[] buf = new byte[length];
+    int i = 0;
+    try {
+      FSDataInputStream in = fs.open(p);
+      in.read(position, buf, 0, buf.length);
+      for(i = position; i < length + position; i++) {
+        assertEquals((byte) i, buf[i - position]);
+      }
+      in.close();
+    } catch(IOException ioe) {
+      throw new IOException("p=" + p + ", length=" + length + ", i=" + i, ioe);
+    }
+  }
+
   /**
    *  create a buffer that contains the entire test file data.
    */
@@ -157,6 +196,11 @@ public class AppendTestUtil {
         (short) repl, BLOCK_SIZE);
   }
 
+  public static void checkFullFile(FileSystem fs, Path file, int len,
+      final byte[] compareContent) throws IOException {
+    checkFullFile(fs, file, len, compareContent, file.toString());
+  }
+
   /**
    *  Compare the content of a file created from FileSystem and Path with
    *  the specified byte[] buffer's content
@@ -164,6 +208,18 @@ public class AppendTestUtil {
    */
   public static void checkFullFile(FileSystem fs, Path name, int len,
                             final byte[] compareContent, String message) throws IOException {
+    checkFullFile(fs, name, len, compareContent, message, true);
+  }
+
+  public static void checkFullFile(FileSystem fs, Path name, int len,
+      final byte[] compareContent, String message,
+      boolean checkFileStatus) throws IOException {
+    if (checkFileStatus) {
+      final FileStatus status = fs.getFileStatus(name);
+      assertEquals("len=" + len + " but status.getLen()=" + status.getLen(),
+          len, status.getLen());
+    }
+
     FSDataInputStream stm = fs.open(name);
     byte[] actual = new byte[len];
     stm.readFully(0, actual);
