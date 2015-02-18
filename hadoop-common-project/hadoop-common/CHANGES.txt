@@ -29,6 +29,8 @@ Trunk (Unreleased)
 
     HADOOP-11554. Expose HadoopKerberosName as a hadoop subcommand (aw)
 
+    HADOOP-11565. Add --slaves shell option (aw)
+
   IMPROVEMENTS
 
     HADOOP-8017. Configure hadoop-main pom to get rid of M2E plugin execution
@@ -171,6 +173,15 @@ Trunk (Unreleased)
     via aw)
 
     HADOOP-11495. Convert site documentation from apt to markdown
+    (Masatake Iwasaki via aw)
+
+    HADOOP-11575. Daemon log documentation is misleading
+    (Naganarasimha G R via aw)
+
+    HADOOP-11596. Allow smart-apply-patch.sh to add new files in binary git
+    patches (raviprak)
+
+    HADOOP-11593. Convert site documentation from apt to markdown (stragglers)
     (Masatake Iwasaki via aw)
 
   BUG FIXES
@@ -387,6 +398,13 @@ Trunk (Unreleased)
 
     HADOOP-11580. Remove SingleNodeSetup.md from trunk (aajisaka)
 
+    HADOOP-11583. Fix syntax error in SecureMode.md (Masatake Iwasaki via aw)
+
+    HADOOP-11437. Remove the version and author information from distcp's
+    README file (Brahma Reddy Battula via aw)
+
+    HADOOP-11585. Fix formatting in Tracing.md (Masatake Iwasaki via aw)
+
   OPTIMIZATIONS
 
     HADOOP-7761. Improve the performance of raw comparisons. (todd)
@@ -576,13 +594,32 @@ Release 2.7.0 - UNRELEASED
     HADOOP-11463 Replace method-local TransferManager object with
     S3AFileSystem#transfers. (Ted Yu via stevel)
 
-    HADOOP-11543. Improve help message for hadoop/yarn command.
-    (Brahma Reddy Battula via ozawa)
-
     HADOOP-11520. Clean incomplete multi-part uploads in S3A tests.
     (Thomas Demoor via stevel)
 
     HADOOP-11579. Documentation for truncate. (shv)
+
+    HADOOP-10140. Specification of HADOOP_CONF_DIR via the environment in
+    hadoop_config.cmd. (Kiran Kumar M R via cnauroth)
+
+    HADOOP-11543. Improve help message for hadoop/yarn command. (Brahma 
+    Reddy Battula via ozawa).
+
+    HADOOP-11586. Update use of Iterator to Iterable in
+    AbstractMetricsContext.java. (Ray Chiang via aajisaka)
+
+    HADOOP-9869. Configuration.getSocketAddr()/getEnum() should use
+    getTrimmed(). (Tsuyoshi Ozawa via aajisaka)
+
+    HADOOP-11589. NetUtils.createSocketAddr should trim the input URI.
+    (Rakesh R via ozawa)
+
+    HADOOP-11600. Fix up source codes to be compiled with Guava 17.0. (ozawa)
+
+    HADOOP-11522. Update S3A Documentation. (Thomas Demoor via stevel)
+
+    HADOOP-11521. Make connection timeout configurable in s3a.
+    (Thomas Demoor via stevel)
 
   OPTIMIZATIONS
 
@@ -906,6 +943,27 @@ Release 2.7.0 - UNRELEASED
 
     HADOOP-10953. NetworkTopology#add calls NetworkTopology#toString without
     holding the netlock (Liang Xie via Colin P. McCabe)
+
+    HADOOP-11587. TestMapFile#testMainMethodMapFile creates test files in
+    hadoop-common project root. (Xiaoyu Yao via wheat9)
+
+    HADOOP-11467. KerberosAuthenticator can connect to a non-secure cluster.
+    (yzhangal via rkanter)
+
+    HADOOP-11000. HAServiceProtocol's health state is incorrectly transitioned
+    to SERVICE_NOT_RESPONDING (Ming Ma via vinayakumarb)
+
+    HADOOP-11570. S3AInputStream.close() downloads the remaining bytes of
+    the object from S3. (Dan Hecht via stevel).
+
+    HADOOP-11295. RPC Server Reader thread can't shutdown if RPCCallQueue is
+    full. (Ming Ma via kihwal)
+
+    HADOOP-11599. Client#getTimeout should use IPC_CLIENT_PING_DEFAULT when 
+    IPC_CLIENT_PING_KEY is not configured. (zhihai xu via ozawa)
+
+    HADOOP-11545. ArrayIndexOutOfBoundsException is thrown with "hadoop
+    credential list -provider". (Brahma Reddy Battula via aajisaka)
 
 Release 2.6.1 - UNRELEASED
 

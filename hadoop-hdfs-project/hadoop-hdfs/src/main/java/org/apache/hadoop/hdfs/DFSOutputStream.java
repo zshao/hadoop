@@ -35,6 +35,7 @@ import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -1443,11 +1444,13 @@ public class DFSOutputStream extends FSOutputSummer
           ExtendedBlock blockCopy = new ExtendedBlock(block);
           blockCopy.setNumBytes(blockSize);
 
+          boolean[] targetPinnings = getPinnings(nodes, true);
           // send the request
           new Sender(out).writeBlock(blockCopy, nodeStorageTypes[0], accessToken,
               dfsClient.clientName, nodes, nodeStorageTypes, null, bcs, 
               nodes.length, block.getNumBytes(), bytesSent, newGS,
-              checksum4WriteBlock, cachingStrategy.get(), isLazyPersistFile);
+              checksum4WriteBlock, cachingStrategy.get(), isLazyPersistFile,
+            (targetPinnings == null ? false : targetPinnings[0]), targetPinnings);
   
           // receive ack for connect
           BlockOpResponseProto resp = BlockOpResponseProto.parseFrom(
@@ -1532,6 +1535,33 @@ public class DFSOutputStream extends FSOutputSummer
           }
         }
         return result;
+      }
+    }
+
+    private boolean[] getPinnings(DatanodeInfo[] nodes, boolean shouldLog) {
+      if (favoredNodes == null) {
+        return null;
+      } else {
+        boolean[] pinnings = new boolean[nodes.length];
+        HashSet<String> favoredSet =
+            new HashSet<String>(Arrays.asList(favoredNodes));
+        for (int i = 0; i < nodes.length; i++) {
+          pinnings[i] = favoredSet.remove(nodes[i].getXferAddrWithHostname());
+          if (DFSClient.LOG.isDebugEnabled()) {
+            DFSClient.LOG.debug(nodes[i].getXferAddrWithHostname() +
+                " was chosen by name node (favored=" + pinnings[i] +
+                ").");
+          }
+        }
+        if (shouldLog && !favoredSet.isEmpty()) {
+          // There is one or more favored nodes that were not allocated.
+          DFSClient.LOG.warn(
+              "These favored nodes were specified but not chosen: " +
+              favoredSet +
+              " Specified favored nodes: " + Arrays.toString(favoredNodes));
+
+        }
+        return pinnings;
       }
     }
 
@@ -1802,10 +1832,13 @@ public class DFSOutputStream extends FSOutputSummer
 
   static DFSOutputStream newStreamForAppend(DFSClient dfsClient, String src,
       boolean toNewBlock, int bufferSize, Progressable progress,
-      LocatedBlock lastBlock, HdfsFileStatus stat, DataChecksum checksum)
-      throws IOException {
+      LocatedBlock lastBlock, HdfsFileStatus stat, DataChecksum checksum,
+      String[] favoredNodes) throws IOException {
     final DFSOutputStream out = new DFSOutputStream(dfsClient, src, toNewBlock,
         progress, lastBlock, stat, checksum);
+    if (favoredNodes != null && favoredNodes.length != 0) {
+      out.streamer.setFavoredNodes(favoredNodes);
+    }
     out.start();
     return out;
   }

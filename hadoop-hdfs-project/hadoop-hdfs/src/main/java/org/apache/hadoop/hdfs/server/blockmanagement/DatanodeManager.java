@@ -187,16 +187,16 @@ public class DatanodeManager {
     this.fsClusterStats = newFSClusterStats();
 
     this.defaultXferPort = NetUtils.createSocketAddr(
-          conf.get(DFSConfigKeys.DFS_DATANODE_ADDRESS_KEY,
+          conf.getTrimmed(DFSConfigKeys.DFS_DATANODE_ADDRESS_KEY,
               DFSConfigKeys.DFS_DATANODE_ADDRESS_DEFAULT)).getPort();
     this.defaultInfoPort = NetUtils.createSocketAddr(
-          conf.get(DFSConfigKeys.DFS_DATANODE_HTTP_ADDRESS_KEY,
+          conf.getTrimmed(DFSConfigKeys.DFS_DATANODE_HTTP_ADDRESS_KEY,
               DFSConfigKeys.DFS_DATANODE_HTTP_ADDRESS_DEFAULT)).getPort();
     this.defaultInfoSecurePort = NetUtils.createSocketAddr(
-        conf.get(DFSConfigKeys.DFS_DATANODE_HTTPS_ADDRESS_KEY,
+        conf.getTrimmed(DFSConfigKeys.DFS_DATANODE_HTTPS_ADDRESS_KEY,
             DFSConfigKeys.DFS_DATANODE_HTTPS_ADDRESS_DEFAULT)).getPort();
     this.defaultIpcPort = NetUtils.createSocketAddr(
-          conf.get(DFSConfigKeys.DFS_DATANODE_IPC_ADDRESS_KEY,
+          conf.getTrimmed(DFSConfigKeys.DFS_DATANODE_IPC_ADDRESS_KEY,
               DFSConfigKeys.DFS_DATANODE_IPC_ADDRESS_DEFAULT)).getPort();
     try {
       this.hostFileManager.refresh(conf.get(DFSConfigKeys.DFS_HOSTS, ""),
@@ -391,8 +391,8 @@ public class DatanodeManager {
       }
       int activeLen = lastActiveIndex + 1;      
       networktopology.sortByDistance(client, b.getLocations(), activeLen);
-      // must invalidate cache since we modified locations array
-      b.invalidateCachedStorageInfo();
+      // must update cache since we modified locations array
+      b.updateCachedStorageInfo();
     }
   }
   
@@ -1387,8 +1387,8 @@ public class DatanodeManager {
   public DatanodeCommand[] handleHeartbeat(DatanodeRegistration nodeReg,
       StorageReport[] reports, final String blockPoolId,
       long cacheCapacity, long cacheUsed, int xceiverCount, 
-      int maxTransfers, int failedVolumes
-      ) throws IOException {
+      int maxTransfers, int failedVolumes,
+      VolumeFailureSummary volumeFailureSummary) throws IOException {
     synchronized (heartbeatManager) {
       synchronized (datanodeMap) {
         DatanodeDescriptor nodeinfo = null;
@@ -1410,7 +1410,8 @@ public class DatanodeManager {
 
         heartbeatManager.updateHeartbeat(nodeinfo, reports,
                                          cacheCapacity, cacheUsed,
-                                         xceiverCount, failedVolumes);
+                                         xceiverCount, failedVolumes,
+                                         volumeFailureSummary);
 
         // If we are in safemode, do not send back any recovery / replication
         // requests. Don't even drain the existing queue of work.

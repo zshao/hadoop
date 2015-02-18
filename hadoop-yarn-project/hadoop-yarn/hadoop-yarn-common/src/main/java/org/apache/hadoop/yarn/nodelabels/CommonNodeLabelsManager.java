@@ -45,7 +45,6 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.event.AsyncDispatcher;
 import org.apache.hadoop.yarn.event.Dispatcher;
 import org.apache.hadoop.yarn.event.EventHandler;
-import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.nodelabels.event.NodeLabelsStoreEvent;
 import org.apache.hadoop.yarn.nodelabels.event.NodeLabelsStoreEventType;
@@ -383,8 +382,8 @@ public class CommonNodeLabelsManager extends AbstractService {
   @SuppressWarnings("unchecked")
   protected void internalRemoveFromClusterNodeLabels(Collection<String> labelsToRemove) {
     // remove labels from nodes
-    for (String nodeName : nodeCollections.keySet()) {
-      Host host = nodeCollections.get(nodeName);
+    for (Map.Entry<String,Host> nodeEntry : nodeCollections.entrySet()) {
+      Host host = nodeEntry.getValue();
       if (null != host) {
         host.labels.removeAll(labelsToRemove);
         for (Node nm : host.nms.values()) {
@@ -496,7 +495,7 @@ public class CommonNodeLabelsManager extends AbstractService {
     }
   }
 
-  private void removeNodeFromLabels(NodeId node, Set<String> labels) {
+  protected void removeNodeFromLabels(NodeId node, Set<String> labels) {
     for(String l : labels) {
       labelCollections.get(l).removeNodeId(node);
     }

@@ -32,6 +32,8 @@ Trunk - Unreleased
 
     YARN-2437. start-yarn.sh/stop-yarn should give info (Varun Saxena via aw)
 
+    YARN-2796. deprecate sbin/yarn-daemon.sh (aw)
+
   OPTIMIZATIONS
 
   BUG FIXES
@@ -97,6 +99,8 @@ Release 2.7.0 - UNRELEASED
 
      YARN-2616 [YARN-913] Add CLI client to the registry to list, view
      and manipulate entries. (Akshay Radia via stevel)
+
+    YARN-2994. Document work-preserving RM restart. (Jian He via ozawa)
 
   IMPROVEMENTS
 
@@ -282,6 +286,37 @@ Release 2.7.0 - UNRELEASED
 
     YARN-2683. [YARN-913] registry config options: document and move to
     core-default. (stevel)
+
+    YARN-1237. Description for yarn.nodemanager.aux-services in 
+    yarn-default.xml is misleading. (Brahma Reddy Battula via ozawa)
+
+    YARN-3157. Refactor the exception handling in ConverterUtils#to*Id.
+    (Bibin A Chundatt via ozawa)
+
+    YARN-3147. Clean up RM web proxy code. (Steve Loughran via xgong)
+
+    YARN-2079. Recover NonAggregatingLogHandler state upon nodemanager
+    restart. (Jason Lowe via junping_du) 
+
+    YARN-3181. FairScheduler: Fix up outdated findbugs issues. (kasha)
+
+    YARN-3124. Fixed CS LeafQueue/ParentQueue to use QueueCapacities to track
+    capacities-by-label. (Wangda Tan via jianhe)
+
+    YARN-3158. Correct log messages in ResourceTrackerService.
+    (Varun Saxena via xgong)
+
+    YARN-3179. Update use of Iterator to Iterable in RMAdminCLI and
+    CommonNodeLabelsManager. (Ray Chiang via xgong)
+
+    YARN-3182. Cleanup switch statement in ApplicationMasterLauncher#handle().
+    (Ray Chiang via ozawa)
+
+    YARN-3203. Correct a log message in AuxServices. (Brahma Reddy Battula 
+    via ozawa)
+
+    YARN-1299. Improve a log message in AppSchedulingInfo by adding application 
+    id. (Ashutosh Jindal and Devaraj K via ozawa)
 
   OPTIMIZATIONS
 
@@ -565,6 +600,36 @@ Release 2.7.0 - UNRELEASED
 
     YARN-3074. Nodemanager dies when localizer runner tries to write to a full
     disk (Varun Saxena via jlowe)
+
+    YARN-3151. On Failover tracking url wrong in application cli for
+    KILLED application (Rohith via xgong)
+
+    YARN-1580. Documentation error regarding "container-allocation.expiry-interval-ms" 
+    (Brahma Reddy Battula via junping_du)
+
+    YARN-3104. Fixed RM to not generate new AMRM tokens on every heartbeat
+    between rolling and activation. (Jason Lowe via jianhe)
+
+    YARN-3191. Log object should be initialized with its own class. (Rohith via
+    aajisaka)
+
+    YARN-3164. RMAdmin command usage prints incorrect command name. 
+    (Bibin A Chundatt via xgong)
+
+    YARN-2847. Linux native container executor segfaults if default banned
+    user detected (Olaf Flebbe via jlowe)
+
+    YARN-2899. Run TestDockerContainerExecutorWithMocks on Linux only.
+    (Ming Ma via cnauroth)
+
+    YARN-2749. Fix some testcases from TestLogAggregationService fails in trunk. 
+    (Xuan Gong via junping_du)
+
+    YARN-3207. Secondary filter matches entites which do not have the key being
+    filtered for. (Zhijie Shen via xgong)
+
+    YARN-3132. RMNodeLabelsManager should remove node from node-to-label mapping
+    when node becomes deactivated. (Wangda Tan via jianhe)
 
 Release 2.6.0 - 2014-11-18
 
