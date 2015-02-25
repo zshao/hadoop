@@ -35,6 +35,7 @@ import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLSocketFactory;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.MultivaluedMap;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.GnuParser;
@@ -54,6 +55,7 @@ import org.apache.hadoop.security.token.delegation.web.DelegationTokenAuthentica
 import org.apache.hadoop.security.token.delegation.web.DelegationTokenAuthenticator;
 import org.apache.hadoop.security.token.delegation.web.KerberosDelegationTokenAuthenticator;
 import org.apache.hadoop.security.token.delegation.web.PseudoDelegationTokenAuthenticator;
+import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.timeline.TimelineDomain;
 import org.apache.hadoop.yarn.api.records.timeline.TimelineDomains;
 import org.apache.hadoop.yarn.api.records.timeline.TimelineEntities;
@@ -80,13 +82,16 @@ import com.sun.jersey.api.client.config.DefaultClientConfig;
 import com.sun.jersey.api.client.filter.ClientFilter;
 import com.sun.jersey.client.urlconnection.HttpURLConnectionFactory;
 import com.sun.jersey.client.urlconnection.URLConnectionClientHandler;
+import com.sun.jersey.core.util.MultivaluedMapImpl;
+
 
 @Private
 @Unstable
 public class TimelineClientImpl extends TimelineClient {
 
   private static final Log LOG = LogFactory.getLog(TimelineClientImpl.class);
-  private static final String RESOURCE_URI_STR = "/ws/v1/timeline/";
+  private static final String RESOURCE_URI_STR_V1 = "/ws/v1/timeline/";
+  private static final String RESOURCE_URI_STR_V2 = "/ws/v2/timeline/";
   private static final Joiner JOINER = Joiner.on("");
   public final static int DEFAULT_SOCKET_TIMEOUT = 1 * 60 * 1000; // 1 minute
 
@@ -107,7 +112,6 @@ public class TimelineClientImpl extends TimelineClient {
   private ConnectionConfigurator connConfigurator;
   private DelegationTokenAuthenticator authenticator;
   private DelegationTokenAuthenticatedURL.Token token;
-  private URI resURI;
 
   @Private
   @VisibleForTesting
@@ -248,7 +252,11 @@ public class TimelineClientImpl extends TimelineClient {
   }
 
   public TimelineClientImpl() {
-    super(TimelineClientImpl.class.getName());
+    super(TimelineClientImpl.class.getName(), null);
+  }
+
+  public TimelineClientImpl(ApplicationId applicationId) {
+    super(TimelineClientImpl.class.getName(), applicationId);
   }
 
   protected void serviceInit(Configuration conf) throws Exception {
@@ -270,18 +278,15 @@ public class TimelineClientImpl extends TimelineClient {
     client.addFilter(retryFilter);
 
     if (YarnConfiguration.useHttps(conf)) {
-      resURI = URI
-          .create(JOINER.join("https://", conf.get(
-              YarnConfiguration.TIMELINE_SERVICE_WEBAPP_HTTPS_ADDRESS,
-              YarnConfiguration.DEFAULT_TIMELINE_SERVICE_WEBAPP_HTTPS_ADDRESS),
-              RESOURCE_URI_STR));
+      timelineServiceAddress = conf.get(
+          YarnConfiguration.TIMELINE_SERVICE_WEBAPP_HTTPS_ADDRESS,
+          YarnConfiguration.DEFAULT_TIMELINE_SERVICE_WEBAPP_HTTPS_ADDRESS);
     } else {
-      resURI = URI.create(JOINER.join("http://", conf.get(
+      timelineServiceAddress = conf.get(
           YarnConfiguration.TIMELINE_SERVICE_WEBAPP_ADDRESS,
-          YarnConfiguration.DEFAULT_TIMELINE_SERVICE_WEBAPP_ADDRESS),
-          RESOURCE_URI_STR));
+          YarnConfiguration.DEFAULT_TIMELINE_SERVICE_WEBAPP_ADDRESS);
     }
-    LOG.info("Timeline service address: " + resURI);
+    LOG.info("Timeline service address: " + timelineServiceAddress);
     super.serviceInit(conf);
   }
 
@@ -294,11 +299,74 @@ public class TimelineClientImpl extends TimelineClient {
     return resp.getEntity(TimelinePutResponse.class);
   }
 
+  @Override
+  public void putEntities(
+      org.apache.hadoop.yarn.api.records.timelineservice.TimelineEntity... entities)
+      throws IOException, YarnException {
+    putEntities(false, entities);
+  }
+
+  @Override
+  public void putEntitiesAsync(
+      org.apache.hadoop.yarn.api.records.timelineservice.TimelineEntity... entities)
+      throws IOException, YarnException {
+    putEntities(true, entities);
+  }
+
+  private void putEntities(boolean async,
+      org.apache.hadoop.yarn.api.records.timelineservice.TimelineEntity... entities)
+      throws IOException, YarnException {
+    org.apache.hadoop.yarn.api.records.timelineservice.TimelineEntities
+        entitiesContainer =
+        new org.apache.hadoop.yarn.api.records.timelineservice.TimelineEntities();
+    for (org.apache.hadoop.yarn.api.records.timelineservice.TimelineEntity entity : entities) {
+      entitiesContainer.addEntity(entity);
+    }
+    MultivaluedMap<String, String> params = new MultivaluedMapImpl();
+    if (contextAppId != null) {
+      params.add("appid", contextAppId.toString());
+    }
+    if (async) {
+      params.add("async", Boolean.TRUE.toString());
+    }
+    putObjects(constructResURI(getConfig(), timelineServiceAddress, true),
+        "entities", params, entitiesContainer);
+  }
 
   @Override
   public void putDomain(TimelineDomain domain) throws IOException,
       YarnException {
     doPosting(domain, "domain");
+  }
+
+  private void putObjects(
+      URI base, String path, MultivaluedMap<String, String> params, Object obj)
+          throws IOException, YarnException {
+    ClientResponse resp;
+    try {
+      resp = client.resource(base).path(path).queryParams(params)
+          .accept(MediaType.APPLICATION_JSON)
+          .type(MediaType.APPLICATION_JSON)
+          .put(ClientResponse.class, obj);
+    } catch (RuntimeException re) {
+      // runtime exception is expected if the client cannot connect the server
+      String msg =
+          "Failed to get the response from the timeline server.";
+      LOG.error(msg, re);
+      throw new IOException(re);
+    }
+    if (resp == null ||
+        resp.getClientResponseStatus() != ClientResponse.Status.OK) {
+      String msg =
+          "Failed to get the response from the timeline server.";
+      LOG.error(msg);
+      if (LOG.isDebugEnabled() && resp != null) {
+        String output = resp.getEntity(String.class);
+        LOG.debug("HTTP error code: " + resp.getStatus()
+            + " Server response:\n" + output);
+      }
+      throw new YarnException(msg);
+    }
   }
 
   private ClientResponse doPosting(Object obj, String path) throws IOException, YarnException {
@@ -346,7 +414,8 @@ public class TimelineClientImpl extends TimelineClient {
                 new DelegationTokenAuthenticatedURL(authenticator,
                     connConfigurator);
             return (Token) authUrl.getDelegationToken(
-                resURI.toURL(), token, renewer, doAsUser);
+                constructResURI(getConfig(), timelineServiceAddress, false).toURL(),
+                token, renewer, doAsUser);
           }
         };
     return (Token<TimelineDelegationTokenIdentifier>) operateDelegationToken(getDTAction);
@@ -380,7 +449,7 @@ public class TimelineClientImpl extends TimelineClient {
                 new DelegationTokenAuthenticatedURL(authenticator,
                     connConfigurator);
             final URI serviceURI = new URI(scheme, null, address.getHostName(),
-                address.getPort(), RESOURCE_URI_STR, null, null);
+                address.getPort(), RESOURCE_URI_STR_V1, null, null);
             return authUrl
                 .renewDelegationToken(serviceURI.toURL(), token, doAsUser);
           }
@@ -416,7 +485,7 @@ public class TimelineClientImpl extends TimelineClient {
                 new DelegationTokenAuthenticatedURL(authenticator,
                     connConfigurator);
             final URI serviceURI = new URI(scheme, null, address.getHostName(),
-                address.getPort(), RESOURCE_URI_STR, null, null);
+                address.getPort(), RESOURCE_URI_STR_V1, null, null);
             authUrl.cancelDelegationToken(serviceURI.toURL(), token, doAsUser);
             return null;
           }
@@ -461,7 +530,8 @@ public class TimelineClientImpl extends TimelineClient {
   @Private
   @VisibleForTesting
   public ClientResponse doPostingObject(Object object, String path) {
-    WebResource webResource = client.resource(resURI);
+    WebResource webResource = client.resource(
+        constructResURI(getConfig(), timelineServiceAddress, false));
     if (path == null) {
       return webResource.accept(MediaType.APPLICATION_JSON)
           .type(MediaType.APPLICATION_JSON)
@@ -555,6 +625,13 @@ public class TimelineClientImpl extends TimelineClient {
   private static void setTimeouts(URLConnection connection, int socketTimeout) {
     connection.setConnectTimeout(socketTimeout);
     connection.setReadTimeout(socketTimeout);
+  }
+
+  private static URI constructResURI(
+      Configuration conf, String address, boolean v2) {
+    return URI.create(
+        JOINER.join(YarnConfiguration.useHttps(conf) ? "https://" : "http://",
+            address, v2 ? RESOURCE_URI_STR_V2 : RESOURCE_URI_STR_V1));
   }
 
   public static void main(String[] argv) throws Exception {

@@ -25,6 +25,7 @@ import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.service.AbstractService;
+import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.timeline.TimelineEntity;
 import org.apache.hadoop.yarn.api.records.timeline.TimelineDomain;
 import org.apache.hadoop.yarn.api.records.timeline.TimelinePutResponse;
@@ -40,15 +41,25 @@ import org.apache.hadoop.yarn.security.client.TimelineDelegationTokenIdentifier;
 @Unstable
 public abstract class TimelineClient extends AbstractService {
 
+  protected ApplicationId contextAppId;
+  protected String timelineServiceAddress;
+
   @Public
   public static TimelineClient createTimelineClient() {
     TimelineClient client = new TimelineClientImpl();
     return client;
   }
 
+  @Public
+  public static TimelineClient createTimelineClient(ApplicationId appId) {
+    TimelineClient client = new TimelineClientImpl(appId);
+    return client;
+  }
+
   @Private
-  protected TimelineClient(String name) {
+  protected TimelineClient(String name, ApplicationId appId) {
     super(name);
+    contextAppId = appId;
   }
 
   /**
@@ -132,4 +143,49 @@ public abstract class TimelineClient extends AbstractService {
   public abstract void cancelDelegationToken(
       Token<TimelineDelegationTokenIdentifier> timelineDT)
           throws IOException, YarnException;
+
+  /**
+   * <p>
+   * Send the information of a number of conceptual entities to the timeline
+   * aggregator. It is a blocking API. The method will not return until all the
+   * put entities have been persisted.
+   * </p>
+   *
+   * @param entities
+   *          the collection of {@link org.apache.hadoop.yarn.api.records.timelineservice.TimelineEntity}
+   * @throws IOException
+   * @throws YarnException
+   */
+  @Public
+  public abstract void putEntities(
+      org.apache.hadoop.yarn.api.records.timelineservice.TimelineEntity... entities)
+      throws IOException, YarnException;
+
+  /**
+   * <p>
+   * Send the information of a number of conceptual entities to the timeline
+   * aggregator. It is an asynchronous API. The method will return once all the
+   * entities are received.
+   * </p>
+   *
+   * @param entities
+   *          the collection of {@link org.apache.hadoop.yarn.api.records.timelineservice.TimelineEntity}
+   * @throws IOException
+   * @throws YarnException
+   */
+  @Public
+  public abstract void putEntitiesAsync(
+      org.apache.hadoop.yarn.api.records.timelineservice.TimelineEntity... entities)
+      throws IOException, YarnException;
+
+  /**
+   * <p>
+   * Update the timeline service address where the request will be sent to
+   * </p>
+   * @param address
+   *          the timeline service address
+   */
+  public void setTimelineServiceAddress(String address) {
+    timelineServiceAddress = address;
+  }
 }
