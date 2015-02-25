@@ -337,7 +337,14 @@ Release 2.7.0 - UNRELEASED
     HDFS-7584. Enable Quota Support for Storage Types (See breakdown of
     tasks below)
 
+    HDFS-7656. Expose truncate API for HDFS httpfs. (yliu)
+
   IMPROVEMENTS
+
+    HDFS-7752. Improve description for
+    "dfs.namenode.num.extra.edits.retained"
+    and "dfs.namenode.num.checkpoints.retained" properties on
+    hdfs-default.xml (Wellington Chevreuil via harsh)
 
     HDFS-7055. Add tracing to DFSInputStream (cmccabe)
 
@@ -655,6 +662,11 @@ Release 2.7.0 - UNRELEASED
 
     HDFS-7772. Document hdfs balancer -exclude/-include option in
     HDFSCommands.html (Xiaoyu Yao via cnauroth)
+
+    HDFS-7773. Additional metrics in HDFS to be accessed via jmx.
+    (Anu Engineer via cnauroth)
+
+    HDFS-7740. Test truncate with DataNodes restarting. (yliu)
 
   OPTIMIZATIONS
 
@@ -982,6 +994,35 @@ Release 2.7.0 - UNRELEASED
     HDFS-6662. WebHDFS cannot open a file if its path contains "%".
     (Gerson Carlos via wheat9)
 
+    HDFS-7808. Remove obsolete -ns options in in DFSHAAdmin.java.
+    (Arshad Mohammad via wheat9)
+
+    HDFS-7788. Post-2.6 namenode may not start up with an image containing
+    inodes created with an old release. (Rushabh Shah via kihwal)
+
+    HDFS-7814. Fix usage string of storageType parameter for
+    "dfsadmin -setSpaceQuota/clrSpaceQuota". (Xiaoyu Yao via cnauroth)
+
+    HDFS-7813. TestDFSHAAdminMiniCluster#testFencer testcase is failing
+    frequently. (Rakesh R via cnauroth)
+
+    HDFS-7009. Active NN and standby NN have different live nodes.
+    (Ming Ma via cnauroth)
+
+    HDFS-7807. libhdfs htable.c: fix htable resizing, add unit test (cmccabe)
+
+    HDFS-7805. NameNode recovery prompt should be printed on console (Surendra
+    Singh Lilhore via Colin P. McCabe)
+
+    HDFS-7008. xlator should be closed upon exit from DFSAdmin#genericRefresh().
+    (ozawa)
+
+    HDFS-7831. Fix the starting index and end condition of the loop in
+    FileDiffList.findEarlierSnapshotBlocks(). (Konstantin Shvachko via jing9)
+
+    HDFS-7763. fix zkfc hung issue due to not catching exception in a corner
+    case. (Liang Xie via wang)
+
     BREAKDOWN OF HDFS-7584 SUBTASKS AND RELATED JIRAS
 
       HDFS-7720. Quota by Storage Type API, tools and ClientNameNode
@@ -998,6 +1039,9 @@ Release 2.7.0 - UNRELEASED
 
       HDFS-7775. Use consistent naming for NN-internal quota related types
       and functions. (Xiaoyu Yao via Arpit Agarwal)
+
+      HDFS-7806. Refactor: move StorageType from hadoop-hdfs to
+      hadoop-common. (Xiaoyu Yao via Arpit Agarwal)
 
 Release 2.6.1 - UNRELEASED
 

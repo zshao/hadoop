@@ -172,9 +172,6 @@ Trunk (Unreleased)
     HADOOP-6964. Allow compact property description in xml (Kengo Seki
     via aw)
 
-    HADOOP-11495. Convert site documentation from apt to markdown
-    (Masatake Iwasaki via aw)
-
     HADOOP-11575. Daemon log documentation is misleading
     (Naganarasimha G R via aw)
 
@@ -405,6 +402,8 @@ Trunk (Unreleased)
 
     HADOOP-11585. Fix formatting in Tracing.md (Masatake Iwasaki via aw)
 
+    HADOOP-11625. Minor fixes to command manual & SLA doc (aw)
+
   OPTIMIZATIONS
 
     HADOOP-7761. Improve the performance of raw comparisons. (todd)
@@ -620,6 +619,17 @@ Release 2.7.0 - UNRELEASED
 
     HADOOP-11521. Make connection timeout configurable in s3a.
     (Thomas Demoor via stevel)
+
+    HADOOP-11440. Use "test.build.data" instead of "build.test.dir" for testing
+    in ClientBaseWithFixes. (Kengo Seki via aajisaka)
+
+    HADOOP-11607. Reduce log spew in S3AFileSystem. (Lei (Eddy) Xu via stevel)
+
+    HADOOP-11495. Convert site documentation from apt to markdown
+    (Masatake Iwasaki via aw)
+
+    HADOOP-11632. Cleanup Find.java to remove SupressWarnings annotations.
+    (Akira Ajisaka via ozawa)
 
   OPTIMIZATIONS
 
@@ -964,6 +974,33 @@ Release 2.7.0 - UNRELEASED
 
     HADOOP-11545. ArrayIndexOutOfBoundsException is thrown with "hadoop
     credential list -provider". (Brahma Reddy Battula via aajisaka)
+
+    HADOOP-11595. Add default implementation for AbstractFileSystem#truncate.
+    (yliu)
+
+    HADOOP-9087. Queue size metric for metric sinks isn't actually maintained
+    (Akira AJISAKA via jlowe)
+
+    HADOOP-11604. Prevent ConcurrentModificationException while closing domain
+    sockets during shutdown of DomainSocketWatcher thread. (cnauroth)
+
+    HADOOP-11612. Workaround for Curator's ChildReaper requiring Guava 15+.
+    (rkanter)
+
+    HADOOP-11584 s3a file block size set to 0 in getFileStatus.
+    (Brahma Reddy Battula via stevel)
+
+    HADOOP-10478. Fix new findbugs warnings in hadoop-maven-plugins.
+    (Li Lu via wheat9)
+
+    HADOOP-8642. Document that io.native.lib.available only controls native bz2
+    and zlib compression codecs. (aajisaka)
+
+    HADOOP-11619. FTPFileSystem should override getDefaultPort.
+    (Brahma Reddy Battula via gera)
+
+    HADOOP-11480. Typo in hadoop-aws/index.md uses wrong scheme for
+    test.fs.s3.name. (Ted Yu via aajisaka)
 
 Release 2.6.1 - UNRELEASED
 

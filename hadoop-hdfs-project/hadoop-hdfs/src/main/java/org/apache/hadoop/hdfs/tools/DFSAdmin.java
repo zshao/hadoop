@@ -51,6 +51,7 @@ import org.apache.hadoop.fs.FsStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.shell.Command;
 import org.apache.hadoop.fs.shell.CommandFormat;
+import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdfs.client.BlockReportOptions;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.DFSUtil;
@@ -71,7 +72,6 @@ import org.apache.hadoop.hdfs.protocol.RollingUpgradeInfo;
 import org.apache.hadoop.hdfs.protocol.SnapshotException;
 import org.apache.hadoop.hdfs.server.namenode.NameNode;
 import org.apache.hadoop.hdfs.server.namenode.TransferFsImage;
-import org.apache.hadoop.hdfs.StorageType;
 import org.apache.hadoop.ipc.GenericRefreshProtocol;
 import org.apache.hadoop.ipc.ProtobufRpcEngine;
 import org.apache.hadoop.ipc.RPC;
@@ -207,9 +207,9 @@ public class DFSAdmin extends FsShell {
   /** A class that supports command clearSpaceQuota */
   private static class ClearSpaceQuotaCommand extends DFSAdminCommand {
     private static final String NAME = "clrSpaceQuota";
-    private static final String USAGE = "-"+NAME+" <dirname>...<dirname> -storageType <storagetype>";
+    private static final String USAGE = "-"+NAME+" [-storageType <storagetype>] <dirname>...<dirname>";
     private static final String DESCRIPTION = USAGE + ": " +
-    "Clear the disk space quota for each directory <dirName>.\n" +
+    "Clear the space quota for each directory <dirName>.\n" +
     "\t\tFor each directory, attempt to clear the quota. An error will be reported if\n" +
     "\t\t1. the directory does not exist or is a file, or\n" +
     "\t\t2. user is not an administrator.\n" +
@@ -259,9 +259,9 @@ public class DFSAdmin extends FsShell {
   private static class SetSpaceQuotaCommand extends DFSAdminCommand {
     private static final String NAME = "setSpaceQuota";
     private static final String USAGE =
-      "-"+NAME+" <quota> <dirname>...<dirname> -storageType <storagetype>";
+      "-"+NAME+" <quota> [-storageType <storagetype>] <dirname>...<dirname>";
     private static final String DESCRIPTION = USAGE + ": " +
-      "Set the disk space quota <quota> for each directory <dirName>.\n" + 
+      "Set the space quota <quota> for each directory <dirName>.\n" +
       "\t\tThe space quota is a long integer that puts a hard limit\n" +
       "\t\ton the total size of all the files under the directory tree.\n" +
       "\t\tThe extra space required for replication is also counted. E.g.\n" +
@@ -1496,30 +1496,35 @@ public class DFSAdmin extends FsShell {
       RPC.getProxy(xface, RPC.getProtocolVersion(xface), address,
         ugi, conf, NetUtils.getDefaultSocketFactory(conf), 0);
 
-    GenericRefreshProtocol xlator =
-      new GenericRefreshProtocolClientSideTranslatorPB(proxy);
+    Collection<RefreshResponse> responses = null;
+    try (GenericRefreshProtocolClientSideTranslatorPB xlator =
+        new GenericRefreshProtocolClientSideTranslatorPB(proxy);) {
+      // Refresh
+      responses = xlator.refresh(identifier, args);
 
-    // Refresh
-    Collection<RefreshResponse> responses = xlator.refresh(identifier, args);
+      int returnCode = 0;
 
-    int returnCode = 0;
+      // Print refresh responses
+      System.out.println("Refresh Responses:\n");
+      for (RefreshResponse response : responses) {
+        System.out.println(response.toString());
 
-    // Print refresh responses
-    System.out.println("Refresh Responses:\n");
-    for (RefreshResponse response : responses) {
-      System.out.println(response.toString());
-
-      if (returnCode == 0 && response.getReturnCode() != 0) {
-        // This is the first non-zero return code, so we should return this
-        returnCode = response.getReturnCode();
-      } else if (returnCode != 0 && response.getReturnCode() != 0) {
-        // Then now we have multiple non-zero return codes,
-        // so we merge them into -1
-        returnCode = -1;
+        if (returnCode == 0 && response.getReturnCode() != 0) {
+          // This is the first non-zero return code, so we should return this
+          returnCode = response.getReturnCode();
+        } else if (returnCode != 0 && response.getReturnCode() != 0) {
+          // Then now we have multiple non-zero return codes,
+          // so we merge them into -1
+          returnCode = - 1;
+        }
+      }
+      return returnCode;
+    } finally {
+      if (responses == null) {
+        System.out.println("Failed to get response.\n");
+        return -1;
       }
     }
-
-    return returnCode;
   }
 
   /**
