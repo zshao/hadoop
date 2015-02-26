@@ -308,6 +308,9 @@ Release 2.7.0 - UNRELEASED
     MAPREDUCE-6264. Remove httpclient dependency from hadoop-mapreduce-client.
     (Brahma Reddy Battula via aajisaka)
 
+    MAPREDUCE-5612. Add javadoc for TaskCompletionEvent.Status.
+    (Chris Palmer via aajisaka)
+
   OPTIMIZATIONS
 
     MAPREDUCE-6169. MergeQueue should release reference to the current item 
@@ -389,6 +392,9 @@ Release 2.7.0 - UNRELEASED
 
     MAPREDUCE-2815. JavaDoc does not generate correctly for
     MultithreadedMapRunner. (Chris Palmer via aajisaka)
+
+    MAPREDUCE-6223. TestJobConf#testNegativeValueForTaskVmem failures. 
+    (Varun Saxena via kasha)
 
 Release 2.6.1 - UNRELEASED
 

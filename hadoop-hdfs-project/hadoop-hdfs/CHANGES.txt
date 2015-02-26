@@ -141,6 +141,8 @@ Trunk (Unreleased)
     HDFS-7668. Convert site documentation from apt to markdown (Masatake
     Iwasaki via aw)
 
+    HDFS-7460. Rewrite httpfs to use new shell framework (John Smith via aw)
+
   OPTIMIZATIONS
 
   BUG FIXES
@@ -668,6 +670,18 @@ Release 2.7.0 - UNRELEASED
 
     HDFS-7740. Test truncate with DataNodes restarting. (yliu)
 
+    HDFS-7495. Remove updatePosition argument from DFSInputStream#getBlockAt()
+    (cmccabe)
+
+    HDFS-7537. Add "UNDER MIN REPL'D BLOCKS" count to fsck.  (GAO Rui via
+    szetszwo)
+
+    HDFS-7832. Show 'Last Modified' in Namenode's 'Browse Filesystem'
+    (vinayakumarb)
+
+    HDFS-7819. Log WARN message for the blocks which are not in Block ID based
+    layout (Rakesh R via Colin P. McCabe)
+
   OPTIMIZATIONS
 
     HDFS-7454. Reduce memory footprint for AclEntries in NameNode.
@@ -1022,6 +1036,12 @@ Release 2.7.0 - UNRELEASED
 
     HDFS-7763. fix zkfc hung issue due to not catching exception in a corner
     case. (Liang Xie via wang)
+
+    HDFS-7843. A truncated file is corrupted after rollback from a rolling
+    upgrade.  (szetszwo)
+
+    HDFS-7774. Unresolved symbols error while compiling HDFS on Windows 7/32 bit.
+    (Kiran Kumar M R via cnauroth)
 
     BREAKDOWN OF HDFS-7584 SUBTASKS AND RELATED JIRAS
 

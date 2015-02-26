@@ -350,6 +350,9 @@ Release 2.7.0 - UNRELEASED
     YARN-2797. Add -help to yarn logs and nodes CLI command. 
     (Jagadesh Kiran N via devaraj)
 
+    YARN-3217. Remove httpclient dependency from hadoop-yarn-server-web-proxy.
+    (Brahma Reddy Battula via ozawa).
+
   OPTIMIZATIONS
 
     YARN-2990. FairScheduler's delay-scheduling always waits for node-local and 
@@ -680,6 +683,10 @@ Release 2.7.0 - UNRELEASED
 
     YARN-3239. WebAppProxy does not support a final tracking url which has
     query fragments and params (Jian He via jlowe)
+
+    YARN-3256. TestClientToAMTokens#testClientTokenRace is not running against 
+    all Schedulers even when using ParameterizedSchedulerTestBase. 
+    (Anubhav Dhoot via devaraj)
 
 Release 2.6.0 - 2014-11-18
 

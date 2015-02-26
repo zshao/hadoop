@@ -404,6 +404,8 @@ Trunk (Unreleased)
 
     HADOOP-11625. Minor fixes to command manual & SLA doc (aw)
 
+    HADOOP-11637. bash location hard-coded in shell scripts (aw)
+
   OPTIMIZATIONS
 
     HADOOP-7761. Improve the performance of raw comparisons. (todd)
@@ -647,6 +649,9 @@ Release 2.7.0 - UNRELEASED
 
     HADOOP-11506. Configuration variable expansion regex expensive for long
     values. (Gera Shegalov via gera)
+
+    HADOOP-11620. Add support for load balancing across a group of KMS for HA.
+    (Arun Suresh via wang)
 
   BUG FIXES
 
@@ -1001,6 +1006,12 @@ Release 2.7.0 - UNRELEASED
 
     HADOOP-11480. Typo in hadoop-aws/index.md uses wrong scheme for
     test.fs.s3.name. (Ted Yu via aajisaka)
+
+    HADOOP-11629. WASB filesystem should not start BandwidthGaugeUpdater if
+    fs.azure.skip.metrics set to true. (Shanyu Zhao via cnauroth)
+
+    HADOOP-9922. hadoop windows native build will fail in 32 bit machine.
+    (Kiran Kumar M R via cnauroth)
 
 Release 2.6.1 - UNRELEASED
 
