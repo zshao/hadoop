@@ -682,6 +682,9 @@ Release 2.7.0 - UNRELEASED
     HDFS-7819. Log WARN message for the blocks which are not in Block ID based
     layout (Rakesh R via Colin P. McCabe)
 
+    HDFS-7308. Change the packet chunk size computation in DFSOutputStream in
+    order to enforce packet size <= 64kB.  (Takuya Fukudome via szetszwo)
+
   OPTIMIZATIONS
 
     HDFS-7454. Reduce memory footprint for AclEntries in NameNode.
@@ -975,9 +978,6 @@ Release 2.7.0 - UNRELEASED
     HDFS-7714. Simultaneous restart of HA NameNodes and DataNode can cause
     DataNode to register successfully with only one NameNode.(vinayakumarb)
 
-    HDFS-7769. TestHDFSCLI should not create files in hdfs project root dir.
-    (szetszwo)
-
     HDFS-7753. Fix Multithreaded correctness Warnings in BackupImage.
     (Rakesh R and shv)
 
@@ -1042,6 +1042,9 @@ Release 2.7.0 - UNRELEASED
 
     HDFS-7774. Unresolved symbols error while compiling HDFS on Windows 7/32 bit.
     (Kiran Kumar M R via cnauroth)
+
+    HDFS-6753. Initialize checkDisk when DirectoryScanner not able to get
+    files list for scanning (J.Andreina via vinayakumarb)
 
     BREAKDOWN OF HDFS-7584 SUBTASKS AND RELATED JIRAS
 
