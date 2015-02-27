@@ -207,6 +207,8 @@ public class ApplicationMaster {
   private int appMasterRpcPort = -1;
   // Tracking url to which app master publishes info for clients to monitor
   private String appMasterTrackingUrl = "";
+  
+  private boolean newTimelineService = false;
 
   // App Master configuration
   // No. of containers to run shell command on
@@ -360,7 +362,8 @@ public class ApplicationMaster {
         "No. of containers on which the shell command needs to be executed");
     opts.addOption("priority", true, "Application Priority. Default 0");
     opts.addOption("debug", false, "Dump out debug information");
-
+    opts.addOption("timeline_service_version", true, 
+        "Version for timeline service");
     opts.addOption("help", false, "Print usage");
     CommandLine cliParser = new GnuParser().parse(opts, args);
 
@@ -499,13 +502,30 @@ public class ApplicationMaster {
 
     if (conf.getBoolean(YarnConfiguration.TIMELINE_SERVICE_ENABLED,
       YarnConfiguration.DEFAULT_TIMELINE_SERVICE_ENABLED)) {
+      if (cliParser.hasOption("timeline_service_version")) {
+        String timelineServiceVersion = 
+            cliParser.getOptionValue("timeline_service_version", "v1");
+        if (timelineServiceVersion.trim().equalsIgnoreCase("v1")) {
+          newTimelineService = false;
+        } else if (timelineServiceVersion.trim().equalsIgnoreCase("v2")) {
+          newTimelineService = true;
+        } else {
+          throw new IllegalArgumentException(
+              "timeline_service_version is not set properly, should be 'v1' or 'v2'");
+        }
+      }
       // Creating the Timeline Client
-      timelineClient = TimelineClient.createTimelineClient();
+      timelineClient = TimelineClient.createTimelineClient(
+          appAttemptID.getApplicationId());
       timelineClient.init(conf);
       timelineClient.start();
     } else {
       timelineClient = null;
       LOG.warn("Timeline service is not enabled");
+      if (cliParser.hasOption("timeline_service_version")) {
+        throw new IllegalArgumentException(
+            "Timeline service is not enabled");
+      }
     }
 
     return true;
@@ -556,8 +576,14 @@ public class ApplicationMaster {
     appSubmitterUgi.addCredentials(credentials);
     
     if(timelineClient != null) {
-      publishApplicationAttemptEvent(timelineClient, appAttemptID.toString(),
-          DSEvent.DS_APP_ATTEMPT_START, domainId, appSubmitterUgi);
+      if (newTimelineService) {
+        publishApplicationAttemptEventOnNewTimelineService(timelineClient, 
+            appAttemptID.toString(), DSEvent.DS_APP_ATTEMPT_START, domainId, 
+            appSubmitterUgi);
+      } else {
+        publishApplicationAttemptEvent(timelineClient, appAttemptID.toString(),
+            DSEvent.DS_APP_ATTEMPT_START, domainId, appSubmitterUgi);
+      }
     }
 
     AMRMClientAsync.CallbackHandler allocListener = new RMCallbackHandler();
@@ -626,8 +652,14 @@ public class ApplicationMaster {
     numRequestedContainers.set(numTotalContainers);
 
     if(timelineClient != null) {
-      publishApplicationAttemptEvent(timelineClient, appAttemptID.toString(),
-          DSEvent.DS_APP_ATTEMPT_END, domainId, appSubmitterUgi);
+      if (newTimelineService) {
+        publishApplicationAttemptEventOnNewTimelineService(timelineClient, 
+            appAttemptID.toString(), DSEvent.DS_APP_ATTEMPT_START, domainId, 
+            appSubmitterUgi);
+      } else {
+        publishApplicationAttemptEvent(timelineClient, appAttemptID.toString(),
+            DSEvent.DS_APP_ATTEMPT_START, domainId, appSubmitterUgi);
+      }
     }
   }
 
@@ -740,8 +772,13 @@ public class ApplicationMaster {
               + containerStatus.getContainerId());
         }
         if(timelineClient != null) {
-          publishContainerEndEvent(
-              timelineClient, containerStatus, domainId, appSubmitterUgi);
+          if (newTimelineService) {
+            publishContainerEndEventOnNewTimelineService(
+                timelineClient, containerStatus, domainId, appSubmitterUgi);
+          } else {
+            publishContainerEndEvent(
+                timelineClient, containerStatus, domainId, appSubmitterUgi);
+          }
         }
       }
       
@@ -858,9 +895,15 @@ public class ApplicationMaster {
         applicationMaster.nmClientAsync.getContainerStatusAsync(containerId, container.getNodeId());
       }
       if(applicationMaster.timelineClient != null) {
-        ApplicationMaster.publishContainerStartEvent(
-            applicationMaster.timelineClient, container,
-            applicationMaster.domainId, applicationMaster.appSubmitterUgi);
+        if (applicationMaster.newTimelineService) {
+            ApplicationMaster.publishContainerStartEventOnNewTimelineService(
+                applicationMaster.timelineClient, container,
+                applicationMaster.domainId, applicationMaster.appSubmitterUgi);
+        } else {
+          ApplicationMaster.publishContainerStartEvent(
+              applicationMaster.timelineClient, container,
+              applicationMaster.domainId, applicationMaster.appSubmitterUgi);
+        }
       }
     }
 
@@ -1147,4 +1190,102 @@ public class ApplicationMaster {
           e instanceof UndeclaredThrowableException ? e.getCause() : e);
     }
   }
+  
+  private static void publishContainerStartEventOnNewTimelineService(
+      final TimelineClient timelineClient, Container container, String domainId,
+      UserGroupInformation ugi) {
+    final org.apache.hadoop.yarn.api.records.timelineservice.TimelineEntity entity = 
+        new org.apache.hadoop.yarn.api.records.timelineservice.TimelineEntity();
+    entity.setId(container.getId().toString());
+    entity.setType(DSEntity.DS_CONTAINER.toString());
+    //entity.setDomainId(domainId);
+    entity.addInfo("user", ugi.getShortUserName());
+    
+    org.apache.hadoop.yarn.api.records.timelineservice.TimelineEvent event = 
+        new org.apache.hadoop.yarn.api.records.timelineservice.TimelineEvent();
+    event.setTimestamp(System.currentTimeMillis());
+    event.setId(DSEvent.DS_CONTAINER_START.toString());
+    event.addInfo("Node", container.getNodeId().toString());
+    event.addInfo("Resources", container.getResource().toString());
+    entity.addEvent(event);
+
+    try {
+      ugi.doAs(new PrivilegedExceptionAction<Object>() {
+        @Override
+        public TimelinePutResponse run() throws Exception {
+          timelineClient.putEntities(entity);
+          return null;
+        }
+      });
+    } catch (Exception e) {
+      LOG.error("Container start event could not be published for "
+          + container.getId().toString(),
+          e instanceof UndeclaredThrowableException ? e.getCause() : e);
+    }
+  }
+
+  private static void publishContainerEndEventOnNewTimelineService(
+      final TimelineClient timelineClient, ContainerStatus container,
+      String domainId, UserGroupInformation ugi) {
+    final org.apache.hadoop.yarn.api.records.timelineservice.TimelineEntity entity = 
+        new org.apache.hadoop.yarn.api.records.timelineservice.TimelineEntity();
+    entity.setId(container.getContainerId().toString());
+    entity.setType(DSEntity.DS_CONTAINER.toString());
+    //entity.setDomainId(domainId);
+    entity.addInfo("user", ugi.getShortUserName());
+    org.apache.hadoop.yarn.api.records.timelineservice.TimelineEvent event = 
+        new  org.apache.hadoop.yarn.api.records.timelineservice.TimelineEvent();
+    event.setTimestamp(System.currentTimeMillis());
+    event.setId(DSEvent.DS_CONTAINER_END.toString());
+    event.addInfo("State", container.getState().name());
+    event.addInfo("Exit Status", container.getExitStatus());
+    entity.addEvent(event);
+
+    try {
+      ugi.doAs(new PrivilegedExceptionAction<Object>() {
+        @Override
+        public TimelinePutResponse run() throws Exception {
+          timelineClient.putEntities(entity);
+          return null;
+        }
+      });
+    } catch (Exception e) {
+      LOG.error("Container end event could not be published for "
+          + container.getContainerId().toString(),
+          e instanceof UndeclaredThrowableException ? e.getCause() : e);
+    }
+  }
+
+  private static void publishApplicationAttemptEventOnNewTimelineService(
+      final TimelineClient timelineClient, String appAttemptId,
+      DSEvent appEvent, String domainId, UserGroupInformation ugi) {
+    final org.apache.hadoop.yarn.api.records.timelineservice.TimelineEntity entity = 
+        new org.apache.hadoop.yarn.api.records.timelineservice.TimelineEntity();
+    entity.setId(appAttemptId);
+    entity.setType(DSEntity.DS_APP_ATTEMPT.toString());
+    //entity.setDomainId(domainId);
+    entity.addInfo("user", ugi.getShortUserName());
+    org.apache.hadoop.yarn.api.records.timelineservice.TimelineEvent event = 
+        new org.apache.hadoop.yarn.api.records.timelineservice.TimelineEvent();
+    event.setId(appEvent.toString());
+    event.setTimestamp(System.currentTimeMillis());
+    entity.addEvent(event);
+
+    try {
+      ugi.doAs(new PrivilegedExceptionAction<Object>() {
+        @Override
+        public TimelinePutResponse run() throws Exception {
+          timelineClient.putEntities(entity);
+          return null;
+        }
+      });
+    } catch (Exception e) {
+      LOG.error("App Attempt "
+          + (appEvent.equals(DSEvent.DS_APP_ATTEMPT_START) ? "start" : "end")
+          + " event could not be published for "
+          + appAttemptId.toString(),
+          e instanceof UndeclaredThrowableException ? e.getCause() : e);
+    }
+  }
+  
 }
