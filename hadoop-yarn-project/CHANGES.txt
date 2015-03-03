@@ -49,6 +49,12 @@ Trunk - Unreleased
     YARN-2980. Move health check script related functionality to hadoop-common
     (Varun Saxena via aw)
 
+    YARN-3168. Convert site documentation from apt to markdown (Gururaj Shetty
+    via aw)
+
+    YARN-3199. Fair Scheduler documentation improvements (Rohit Agarwal via
+    aw)
+
   OPTIMIZATIONS
 
   BUG FIXES
@@ -364,6 +370,12 @@ Release 2.7.0 - UNRELEASED
 
     YARN-2820. Retry in FileSystemRMStateStore when FS's operations fail 
     due to IOException. (Zhihai Xu via ozawa)
+
+    YARN-3262. Surface application outstanding resource requests table 
+    in RM web UI. (Jian He via wangda)
+
+    YARN-3281. Added RMStateStore to StateMachine visualization list.
+    (Chengbing Liu via jianhe)
 
   OPTIMIZATIONS
 
@@ -699,6 +711,12 @@ Release 2.7.0 - UNRELEASED
     YARN-3256. TestClientToAMTokens#testClientTokenRace is not running against 
     all Schedulers even when using ParameterizedSchedulerTestBase. 
     (Anubhav Dhoot via devaraj)
+
+    YARN-3270. Fix node label expression not getting set in 
+    ApplicationSubmissionContext (Rohit Agarwal via wangda)
+
+    YARN-3265. Fixed a deadlock in CapacityScheduler by always passing a queue's
+    available resource-limit from the parent queue. (Wangda Tan via vinodkv)
 
 Release 2.6.0 - 2014-11-18
 

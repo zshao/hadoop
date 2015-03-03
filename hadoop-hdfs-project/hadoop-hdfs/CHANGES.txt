@@ -14,6 +14,10 @@ Trunk (Unreleased)
 
     HDFS-2538. option to disable fsck dots (Mohammad Kamrul Islam via aw)
 
+    HDFS-7302. Remove "downgrade" from "namenode -rollingUpgrade" startup
+    option since it may incorrectly finalize an ongoing rolling upgrade.
+    (Kai Sasaki via szetszwo)
+
   NEW FEATURES
 
     HDFS-3125. Add JournalService to enable Journal Daemon. (suresh)
@@ -305,6 +309,9 @@ Trunk (Unreleased)
 
     HDFS-7803. Wrong command mentioned in HDFSHighAvailabilityWithQJM
     documentation (Arshad Mohammad via aw)
+
+    HDFS-4681. TestBlocksWithNotEnoughRacks#testCorruptBlockRereplicatedAcrossRacks 
+    fails using IBM java (Ayappan via aw)
 
 Release 2.7.0 - UNRELEASED
 
@@ -685,6 +692,18 @@ Release 2.7.0 - UNRELEASED
     HDFS-7308. Change the packet chunk size computation in DFSOutputStream in
     order to enforce packet size <= 64kB.  (Takuya Fukudome via szetszwo)
 
+    HDFS-7685. Document dfs.namenode.heartbeat.recheck-interval in
+    hdfs-default.xml. (Kai Sasaki via aajisaka)
+
+    HDFS-5853. Add "hadoop.user.group.metrics.percentiles.intervals" to
+    hdfs-default.xml. (aajisaka)
+
+    HDFS-7439. Add BlockOpResponseProto's message to the exception messages.
+    (Takanobu Asanuma via szetszwo)
+
+    HDFS-7789. DFSck should resolve the path to support cross-FS symlinks.
+    (gera)
+
   OPTIMIZATIONS
 
     HDFS-7454. Reduce memory footprint for AclEntries in NameNode.
@@ -978,6 +997,9 @@ Release 2.7.0 - UNRELEASED
     HDFS-7714. Simultaneous restart of HA NameNodes and DataNode can cause
     DataNode to register successfully with only one NameNode.(vinayakumarb)
 
+    HDFS-7769. TestHDFSCLI should not create files in hdfs project root dir.
+    (szetszwo)
+
     HDFS-7753. Fix Multithreaded correctness Warnings in BackupImage.
     (Rakesh R and shv)
 
@@ -1045,6 +1067,15 @@ Release 2.7.0 - UNRELEASED
 
     HDFS-6753. Initialize checkDisk when DirectoryScanner not able to get
     files list for scanning (J.Andreina via vinayakumarb)
+
+    HDFS-7785. Improve diagnostics information for HttpPutFailedException.
+    (Chengbing Liu via wheat9)
+
+    HDFS-7871. NameNodeEditLogRoller can keep printing "Swallowing exception"
+    message. (jing9)
+
+    HDFS-7757. Misleading error messages in FSImage.java. (Brahma Reddy Battula
+    via Arpit Agarwal)
 
     BREAKDOWN OF HDFS-7584 SUBTASKS AND RELATED JIRAS
 

@@ -972,8 +972,7 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
       MetaRecoveryContext recovery = startOpt.createRecoveryContext();
       final boolean staleImage
           = fsImage.recoverTransitionRead(startOpt, this, recovery);
-      if (RollingUpgradeStartupOption.ROLLBACK.matches(startOpt) ||
-          RollingUpgradeStartupOption.DOWNGRADE.matches(startOpt)) {
+      if (RollingUpgradeStartupOption.ROLLBACK.matches(startOpt)) {
         rollingUpgradeInfo = null;
       }
       final boolean needToSave = staleImage && !haEnabled && !isRollingUpgrade(); 
@@ -4559,14 +4558,16 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
                 + rollThreshold);
             rollEditLog();
           }
+        } catch (Exception e) {
+          FSNamesystem.LOG.error("Swallowing exception in "
+              + NameNodeEditLogRoller.class.getSimpleName() + ":", e);
+        }
+        try {
           Thread.sleep(sleepIntervalMs);
         } catch (InterruptedException e) {
           FSNamesystem.LOG.info(NameNodeEditLogRoller.class.getSimpleName()
               + " was interrupted, exiting");
           break;
-        } catch (Exception e) {
-          FSNamesystem.LOG.error("Swallowing exception in "
-              + NameNodeEditLogRoller.class.getSimpleName() + ":", e);
         }
       }
     }
