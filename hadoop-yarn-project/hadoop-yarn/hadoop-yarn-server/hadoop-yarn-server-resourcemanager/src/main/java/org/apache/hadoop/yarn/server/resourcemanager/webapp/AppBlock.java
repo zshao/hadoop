@@ -37,6 +37,7 @@ import org.apache.hadoop.yarn.api.records.QueueACL;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
 import org.apache.hadoop.yarn.server.resourcemanager.ResourceManager;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMApp;
@@ -62,12 +63,16 @@ public class AppBlock extends HtmlBlock {
 
   private final Configuration conf;
   private final ResourceManager rm;
+  private final boolean rmWebAppUIActions;
 
   @Inject
   AppBlock(ResourceManager rm, ViewContext ctx, Configuration conf) {
     super(ctx);
     this.conf = conf;
     this.rm = rm;
+    this.rmWebAppUIActions =
+        conf.getBoolean(YarnConfiguration.RM_WEBAPP_UI_ACTIONS_ENABLED,
+                YarnConfiguration.DEFAULT_RM_WEBAPP_UI_ACTIONS_ENABLED);
   }
 
   @Override
@@ -112,6 +117,36 @@ public class AppBlock extends HtmlBlock {
     }
 
     setTitle(join("Application ", aid));
+
+    if (rmWebAppUIActions) {
+      // Application Kill
+      html.div()
+        .button()
+          .$onclick("confirmAction()").b("Kill Application")._()
+          ._();
+
+      StringBuilder script = new StringBuilder();
+      script.append("function confirmAction() {")
+          .append(" b = confirm(\"Are you sure?\");")
+          .append(" if (b == true) {")
+          .append(" $.ajax({")
+          .append(" type: 'PUT',")
+          .append(" url: '/ws/v1/cluster/apps/").append(aid).append("/state',")
+          .append(" contentType: 'application/json',")
+          .append(" data: '{\"state\":\"KILLED\"}',")
+          .append(" dataType: 'json'")
+          .append(" }).done(function(data){")
+          .append(" setTimeout(function(){")
+          .append(" location.href = '/cluster/app/").append(aid).append("';")
+          .append(" }, 1000);")
+          .append(" }).fail(function(data){")
+          .append(" console.log(data);")
+          .append(" });")
+          .append(" }")
+          .append("}");
+
+      html.script().$type("text/javascript")._(script.toString())._();
+    }
 
     RMAppMetrics appMerics = rmApp.getRMAppMetrics();
     
@@ -204,18 +239,55 @@ public class AppBlock extends HtmlBlock {
     table._();
     div._();
 
+    createContainerLocalityTable(html, attemptMetrics);
     createResourceRequestsTable(html, app);
+  }
+
+  private void createContainerLocalityTable(Block html,
+      RMAppAttemptMetrics attemptMetrics) {
+    if (attemptMetrics == null) {
+      return;
+    }
+
+    DIV<Hamlet> div = html.div(_INFO_WRAP);
+    TABLE<DIV<Hamlet>> table =
+        div.h3(
+          "Total Allocated Containers: "
+              + attemptMetrics.getTotalAllocatedContainers()).h3("Each table cell"
+            + " represents the number of NodeLocal/RackLocal/OffSwitch containers"
+            + " satisfied by NodeLocal/RackLocal/OffSwitch resource requests.").table(
+          "#containerLocality");
+    table.
+      tr().
+        th(_TH, "").
+        th(_TH, "Node Local Request").
+        th(_TH, "Rack Local Request").
+        th(_TH, "Off Switch Request").
+      _();
+
+    String[] containersType =
+        { "Num Node Local Containers (satisfied by)", "Num Rack Local Containers (satisfied by)",
+            "Num Off Switch Containers (satisfied by)" };
+    boolean odd = false;
+    for (int i = 0; i < attemptMetrics.getLocalityStatistics().length; i++) {
+      table.tr((odd = !odd) ? _ODD : _EVEN).td(containersType[i])
+        .td(String.valueOf(attemptMetrics.getLocalityStatistics()[i][0]))
+        .td(i == 0 ? "" : String.valueOf(attemptMetrics.getLocalityStatistics()[i][1]))
+        .td(i <= 1 ? "" : String.valueOf(attemptMetrics.getLocalityStatistics()[i][2]))._();
+    }
+    table._();
+    div._();
   }
 
   private void createResourceRequestsTable(Block html, AppInfo app) {
     TBODY<TABLE<Hamlet>> tbody =
         html.table("#ResourceRequests").thead().tr()
           .th(".priority", "Priority")
-          .th(".resourceName", "ResourceName")
+          .th(".resourceName", "Resource Name")
           .th(".totalResource", "Capability")
-          .th(".numContainers", "NumContainers")
-          .th(".relaxLocality", "RelaxLocality")
-          .th(".nodeLabelExpression", "NodeLabelExpression")._()._().tbody();
+          .th(".numContainers", "Num Containers")
+          .th(".relaxLocality", "Relax Locality")
+          .th(".nodeLabelExpression", "Node Label Expression")._()._().tbody();
 
     Resource totalResource = Resource.newInstance(0, 0);
     if (app.getResourceRequests() != null) {

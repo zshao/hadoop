@@ -704,6 +704,19 @@ Release 2.7.0 - UNRELEASED
     HDFS-7789. DFSck should resolve the path to support cross-FS symlinks.
     (gera)
 
+    HDFS-7535. Utilize Snapshot diff report for distcp. (jing9)
+
+    HDFS-1522. Combine two BLOCK_FILE_PREFIX constants into one.
+    (Dongming Liang via shv)
+
+    HDFS-7746. Add a test randomly mixing append, truncate and snapshot
+    operations. (szetszwo)
+
+    HADOOP-11648. Set DomainSocketWatcher thread name explicitly.
+    (Liang Xie via ozawa)
+
+    HDFS-7855. Separate class Packet from DFSOutputStream. (Li Bo bia jing9)
+
   OPTIMIZATIONS
 
     HDFS-7454. Reduce memory footprint for AclEntries in NameNode.
@@ -1076,6 +1089,20 @@ Release 2.7.0 - UNRELEASED
 
     HDFS-7757. Misleading error messages in FSImage.java. (Brahma Reddy Battula
     via Arpit Agarwal)
+
+    HDFS-6565. Use jackson instead jetty json in hdfs-client.
+    (Akira Ajisaka via wheat9)
+
+    HDFS-7682. {{DistributedFileSystem#getFileChecksum}} of a snapshotted file
+    includes non-snapshotted content. (Charles Lamb via atm)
+
+    HDFS-7869. Inconsistency in the return information while performing rolling
+    upgrade ( J.Andreina via vinayakumarb )
+
+    HDFS-7879. hdfs.dll does not export functions of the public libhdfs API.
+    (Chris Nauroth via wheat9)
+
+    HDFS-7434. DatanodeID hashCode should not be mutable. (daryn via kihwal)
 
     BREAKDOWN OF HDFS-7584 SUBTASKS AND RELATED JIRAS
 
