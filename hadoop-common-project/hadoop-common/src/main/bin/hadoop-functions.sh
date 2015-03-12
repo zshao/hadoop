@@ -162,13 +162,13 @@ function hadoop_import_shellprofiles
   local files2
 
   if [[ -d "${HADOOP_LIBEXEC_DIR}/shellprofile.d" ]]; then
-    files1=(${HADOOP_LIBEXEC_DIR}/shellprofile.d/*)
+    files1=(${HADOOP_LIBEXEC_DIR}/shellprofile.d/*.sh)
   else
     hadoop_error "WARNING: ${HADOOP_LIBEXEC_DIR}/shellprofile.d doesn't exist. Functionality may not work."
   fi
 
   if [[ -d "${HADOOP_CONF_DIR}/shellprofile.d" ]]; then
-    files2=(${HADOOP_CONF_DIR}/shellprofile.d/*)
+    files2=(${HADOOP_CONF_DIR}/shellprofile.d/*.sh)
   fi
 
   for i in "${files1[@]}" "${files2[@]}"
@@ -415,7 +415,19 @@ function hadoop_common_slave_mode_execute
 
   # if --slaves is still on the command line, remove it
   # to prevent loops
-  argv=(${argv[@]/--slaves})
+  # Also remove --hostnames and --hosts along with arg values
+  local argsSize=${#argv[@]};
+  for (( i = 0; i < $argsSize; i++ ))
+  do
+    if [[ "${argv[$i]}" =~ ^--slaves$ ]]; then
+      unset argv[$i]
+    elif [[ "${argv[$i]}" =~ ^--hostnames$ ]] ||
+      [[ "${argv[$i]}" =~ ^--hosts$ ]]; then
+      unset argv[$i];
+      let i++;
+      unset argv[$i];
+    fi
+  done
   hadoop_connect_to_hosts -- "${argv[@]}"
 }
 

@@ -313,6 +313,18 @@ Trunk (Unreleased)
     HDFS-4681. TestBlocksWithNotEnoughRacks#testCorruptBlockRereplicatedAcrossRacks 
     fails using IBM java (Ayappan via aw)
 
+Release 2.8.0 - UNRELEASED
+
+  INCOMPATIBLE CHANGES
+
+  NEW FEATURES
+
+  IMPROVEMENTS
+
+  OPTIMIZATIONS
+
+  BUG FIXES
+
 Release 2.7.0 - UNRELEASED
 
   INCOMPATIBLE CHANGES
@@ -347,6 +359,8 @@ Release 2.7.0 - UNRELEASED
     tasks below)
 
     HDFS-7656. Expose truncate API for HDFS httpfs. (yliu)
+
+    HDFS-6488. Support HDFS superuser in NFS gateway. (brandonli)
 
   IMPROVEMENTS
 
@@ -716,6 +730,18 @@ Release 2.7.0 - UNRELEASED
     (Liang Xie via ozawa)
 
     HDFS-7855. Separate class Packet from DFSOutputStream. (Li Bo bia jing9)
+
+    HDFS-7411. Change decommission logic to throttle by blocks rather than
+    nodes in each interval. (Andrew Wang via cdouglas)
+
+    HDFS-7898. Change TestAppendSnapshotTruncate to fail-fast.
+    (Tsz Wo Nicholas Sze via jing9)
+
+    HDFS-6806. HDFS Rolling upgrade document should mention the versions
+    available. (J.Andreina via aajisaka)
+
+    HDFS-7491. Add incremental blockreport latency to DN metrics.
+    (Ming Ma via cnauroth)
 
   OPTIMIZATIONS
 
@@ -1104,6 +1130,18 @@ Release 2.7.0 - UNRELEASED
 
     HDFS-7434. DatanodeID hashCode should not be mutable. (daryn via kihwal)
 
+    HDFS-7885. Datanode should not trust the generation stamp provided by
+    client. (Tsz Wo Nicholas Sze via jing9)
+
+    HDFS-7818. OffsetParam should return the default value instead of throwing
+    NPE when the value is unspecified. (Eric Payne via wheat9)
+
+    HDFS-7830. DataNode does not release the volume lock when adding a volume
+    fails. (Lei Xu via Colin P. Mccabe)
+
+    HDFS-6833.  DirectoryScanner should not register a deleting block with
+    memory of DataNode.  (Shinichi Yamashita via szetszwo)
+
     BREAKDOWN OF HDFS-7584 SUBTASKS AND RELATED JIRAS
 
       HDFS-7720. Quota by Storage Type API, tools and ClientNameNode
@@ -1123,6 +1161,9 @@ Release 2.7.0 - UNRELEASED
 
       HDFS-7806. Refactor: move StorageType from hadoop-hdfs to
       hadoop-common. (Xiaoyu Yao via Arpit Agarwal)
+
+      HDFS-7722. DataNode#checkDiskError should also remove Storage when error
+      is found. (Lei Xu via Colin P. McCabe)
 
 Release 2.6.1 - UNRELEASED
 
