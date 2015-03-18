@@ -15,35 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.hadoop.crypto;
 
-package org.apache.hadoop.yarn.api.records;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
+import org.junit.Assert;
+import org.junit.BeforeClass;
 
-import org.apache.hadoop.classification.InterfaceAudience.Public;
-import org.apache.hadoop.classification.InterfaceStability.Stable;
-import org.apache.hadoop.yarn.api.ApplicationClientProtocol;
+public class TestCryptoStreamsWithJceAesCtrCryptoCodec extends 
+    TestCryptoStreams {
 
-/**
- * State of a Queue.
- * <p>
- * A queue is in one of:
- * <ul>
- *   <li>{@link #RUNNING} - normal state.</li>
- *   <li>{@link #STOPPED} - not accepting new application submissions.</li>
- * </ul>
- * 
- * @see QueueInfo
- * @see ApplicationClientProtocol#getQueueInfo(org.apache.hadoop.yarn.api.protocolrecords.GetQueueInfoRequest)
- */
-@Public
-@Stable
-public enum QueueState {
-  /**
-   * Stopped - Not accepting submissions of new applications.
-   */
-  STOPPED,
-  
-  /**
-   * Running - normal operation.
-   */
-  RUNNING
+  @BeforeClass
+  public static void init() throws Exception {
+    Configuration conf = new Configuration();
+    conf.set(
+        CommonConfigurationKeysPublic.HADOOP_SECURITY_CRYPTO_CODEC_CLASSES_AES_CTR_NOPADDING_KEY,
+        JceAesCtrCryptoCodec.class.getName());
+    codec = CryptoCodec.getInstance(conf);
+    Assert.assertEquals(JceAesCtrCryptoCodec.class.getCanonicalName(),
+        codec.getClass().getCanonicalName());
+  }
 }

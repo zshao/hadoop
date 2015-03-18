@@ -321,9 +321,14 @@ Release 2.8.0 - UNRELEASED
 
   IMPROVEMENTS
 
+    HDFS-2360. Ugly stacktrace when quota exceeds. (harsh)
+
   OPTIMIZATIONS
 
   BUG FIXES
+
+    HDFS-5356. MiniDFSCluster should close all open FileSystems when shutdown()
+    (Rakesh R via vinayakumarb)
 
 Release 2.7.0 - UNRELEASED
 
@@ -361,6 +366,8 @@ Release 2.7.0 - UNRELEASED
     HDFS-7656. Expose truncate API for HDFS httpfs. (yliu)
 
     HDFS-6488. Support HDFS superuser in NFS gateway. (brandonli)
+
+    HDFS-7838. Expose truncate API for libhdfs. (yliu)
 
   IMPROVEMENTS
 
@@ -742,6 +749,15 @@ Release 2.7.0 - UNRELEASED
 
     HDFS-7491. Add incremental blockreport latency to DN metrics.
     (Ming Ma via cnauroth)
+
+    HDFS-7435. PB encoding of block reports is very inefficient.
+    (Daryn Sharp via kihwal)
+
+    HDFS-2605. Remove redundant "Release 0.21.1" section from CHANGES.txt.
+    (Allen Wittenauer via shv)
+
+    HDFS-7940. Add tracing to DFSClient#setQuotaByStorageType (Rakesh R via
+    Colin P. McCabe)
 
   OPTIMIZATIONS
 
@@ -1141,6 +1157,17 @@ Release 2.7.0 - UNRELEASED
 
     HDFS-6833.  DirectoryScanner should not register a deleting block with
     memory of DataNode.  (Shinichi Yamashita via szetszwo)
+
+    HDFS-7926. NameNode implementation of ClientProtocol.truncate(..) is not 
+    idempotent (Tsz Wo Nicholas Sze via brandonli)
+
+    HDFS-7903. Cannot recover block after truncate and delete snapshot.
+    (Plamen Jeliazkov via shv)
+
+    HDFS-7915. The DataNode can sometimes allocate a ShortCircuitShm slot and
+    fail to tell the DFSClient about it because of a network error (cmccabe)
+
+    HDFS-7886. Fix TestFileTruncate falures. (Plamen Jeliazkov and shv)
 
     BREAKDOWN OF HDFS-7584 SUBTASKS AND RELATED JIRAS
 
@@ -10289,8 +10316,6 @@ Release 0.22.0 - 2011-11-29
     execution order of test methods (Laxman, Uma Maheswara Rao G via shv)
 
     HDFS-2287. TestParallelRead has a small off-by-one bug. (todd)
-
-Release 0.21.1 - Unreleased
 
     HDFS-1466. TestFcHdfsSymlink relies on /tmp/test not existing. (eli)
 
