@@ -42,7 +42,6 @@ import org.apache.hadoop.yarn.security.client.TimelineDelegationTokenIdentifier;
 public abstract class TimelineClient extends AbstractService {
 
   protected ApplicationId contextAppId;
-  protected String timelineServiceAddress;
 
   @Public
   public static TimelineClient createTimelineClient() {
@@ -185,7 +184,6 @@ public abstract class TimelineClient extends AbstractService {
    * @param address
    *          the timeline service address
    */
-  public void setTimelineServiceAddress(String address) {
-    timelineServiceAddress = address;
-  }
+  public abstract void setTimelineServiceAddress(String address);
+  
 }

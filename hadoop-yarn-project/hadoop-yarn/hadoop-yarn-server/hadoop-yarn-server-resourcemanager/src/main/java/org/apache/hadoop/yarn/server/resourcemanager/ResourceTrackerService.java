@@ -21,6 +21,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import org.apache.commons.logging.Log;
@@ -57,6 +60,7 @@ import org.apache.hadoop.yarn.server.api.records.NodeStatus;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMApp;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttempt;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.event.RMAppAttemptContainerFinishedEvent;
+import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMAppAggregatorUpdateEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNodeEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNodeEventType;
@@ -406,6 +410,11 @@ public class ResourceTrackerService extends AbstractService implements
           new RMNodeEvent(nodeId, RMNodeEventType.REBOOTING));
       return resync;
     }
+    
+    // Check & update aggregators info from request.
+    // TODO make sure it won't have race condition issue for AM failed over case
+    // that the older registration could possible override the newer one.
+    updateAppAggregatorsMap(request);
 
     // Heartbeat response
     NodeHeartbeatResponse nodeHeartBeatResponse = YarnServerBuilderUtils
@@ -421,14 +430,71 @@ public class ResourceTrackerService extends AbstractService implements
     if (!systemCredentials.isEmpty()) {
       nodeHeartBeatResponse.setSystemCredentialsForApps(systemCredentials);
     }
+    
+    // Return aggregators' map that NM needs to know
+    // TODO we should optimize this to only include aggreator info that NM 
+    // doesn't know yet.
+    List<ApplicationId> keepAliveApps = remoteNodeStatus.getKeepAliveApplications();
+    if (keepAliveApps != null) {
+      setAppAggregatorsMapToResponse(keepAliveApps, nodeHeartBeatResponse);
+    }
 
     // 4. Send status to RMNode, saving the latest response.
     this.rmContext.getDispatcher().getEventHandler().handle(
         new RMNodeStatusEvent(nodeId, remoteNodeStatus.getNodeHealthStatus(),
             remoteNodeStatus.getContainersStatuses(), 
-            remoteNodeStatus.getKeepAliveApplications(), nodeHeartBeatResponse));
+            keepAliveApps, nodeHeartBeatResponse));
 
     return nodeHeartBeatResponse;
+  }
+  
+  private void setAppAggregatorsMapToResponse(
+      List<ApplicationId> liveApps, NodeHeartbeatResponse response) {
+    Map<ApplicationId, String> liveAppAggregatorsMap = new 
+        ConcurrentHashMap<ApplicationId, String>();
+    Map<ApplicationId, RMApp> rmApps = rmContext.getRMApps();
+      for (ApplicationId appId : liveApps) {
+        String appAggregatorAddr = rmApps.get(appId).getAggregatorAddr();
+        if (appAggregatorAddr != null) {
+          liveAppAggregatorsMap.put(appId, appAggregatorAddr);
+        } else {
+          // Log a debug info if aggregator address is not found.
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("Aggregator for applicaton: " + appId + " hasn't registered yet!");
+          }
+        }
+      }
+    response.setAppAggregatorsMap(liveAppAggregatorsMap);
+  }
+  
+  private void updateAppAggregatorsMap(NodeHeartbeatRequest request) {
+    Map<ApplicationId, String> registeredAggregatorsMap = 
+        request.getRegisteredAggregators();
+    if (registeredAggregatorsMap != null 
+        && !registeredAggregatorsMap.isEmpty()) {
+      Map<ApplicationId, RMApp> rmApps = rmContext.getRMApps();
+      for (Map.Entry<ApplicationId, String> entry: 
+          registeredAggregatorsMap.entrySet()) {
+        ApplicationId appId = entry.getKey();
+        String aggregatorAddr = entry.getValue();
+        if (aggregatorAddr != null && !aggregatorAddr.isEmpty()) {
+          RMApp rmApp = rmApps.get(appId);
+          if (rmApp == null) {
+            LOG.warn("Cannot update aggregator info because application ID: " + 
+                appId + " is not found in RMContext!");
+          } else {
+            String previousAggregatorAddr = rmApp.getAggregatorAddr();
+            if (previousAggregatorAddr == null || 
+                previousAggregatorAddr != aggregatorAddr) {
+              // sending aggregator update event.
+              RMAppAggregatorUpdateEvent event =
+                  new RMAppAggregatorUpdateEvent(appId, aggregatorAddr);
+              rmContext.getDispatcher().getEventHandler().handle(event);
+            }
+          }
+        }
+      }
+    }
   }
 
   private void populateKeys(NodeHeartbeatRequest request,

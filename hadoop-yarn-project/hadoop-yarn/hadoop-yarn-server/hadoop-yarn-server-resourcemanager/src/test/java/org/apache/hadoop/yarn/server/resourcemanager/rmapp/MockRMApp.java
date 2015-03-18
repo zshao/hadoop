@@ -271,4 +271,19 @@ public class MockRMApp implements RMApp {
   public ResourceRequest getAMResourceRequest() {
     return this.amReq; 
   }
+
+  @Override
+  public String getAggregatorAddr() {
+    throw new UnsupportedOperationException("Not supported yet.");
+  }
+  
+  @Override
+  public void removeAggregatorAddr() {
+    throw new UnsupportedOperationException("Not supported yet.");
+  }
+
+  @Override
+  public void setAggregatorAddr(String aggregatorAddr) {
+    throw new UnsupportedOperationException("Not supported yet.");
+  }
 }

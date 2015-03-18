@@ -18,6 +18,10 @@
 
 package org.apache.hadoop.yarn.server.api.protocolrecords;
 
+import java.util.List;
+import java.util.Map;
+
+import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.server.api.records.MasterKey;
 import org.apache.hadoop.yarn.server.api.records.NodeStatus;
 import org.apache.hadoop.yarn.util.Records;
@@ -36,6 +40,21 @@ public abstract class NodeHeartbeatRequest {
         .setLastKnownNMTokenMasterKey(lastKnownNMTokenMasterKey);
     return nodeHeartbeatRequest;
   }
+  
+  public static NodeHeartbeatRequest newInstance(NodeStatus nodeStatus,
+      MasterKey lastKnownContainerTokenMasterKey,
+      MasterKey lastKnownNMTokenMasterKey,
+      Map<ApplicationId, String> registeredAggregators) {
+    NodeHeartbeatRequest nodeHeartbeatRequest =
+        Records.newRecord(NodeHeartbeatRequest.class);
+    nodeHeartbeatRequest.setNodeStatus(nodeStatus);
+    nodeHeartbeatRequest
+        .setLastKnownContainerTokenMasterKey(lastKnownContainerTokenMasterKey);
+    nodeHeartbeatRequest
+        .setLastKnownNMTokenMasterKey(lastKnownNMTokenMasterKey);
+    nodeHeartbeatRequest.setRegisteredAggregators(registeredAggregators);
+    return nodeHeartbeatRequest;
+  }
 
   public abstract NodeStatus getNodeStatus();
   public abstract void setNodeStatus(NodeStatus status);
@@ -45,4 +64,8 @@ public abstract class NodeHeartbeatRequest {
   
   public abstract MasterKey getLastKnownNMTokenMasterKey();
   public abstract void setLastKnownNMTokenMasterKey(MasterKey secretKey);
+  
+  // This tells RM registered aggregators' address info on this node
+  public abstract Map<ApplicationId, String> getRegisteredAggregators();
+  public abstract void setRegisteredAggregators(Map<ApplicationId, String> appAggregatorsMap);
 }
