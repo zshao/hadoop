@@ -47,7 +47,7 @@ message NodeHeartbeatRequestProto {
   optional NodeStatusProto node_status = 1;
   optional MasterKeyProto last_known_container_token_master_key = 2;
   optional MasterKeyProto last_known_nm_token_master_key = 3;
-  repeated AppAggregatorsMapProto registered_aggregators = 4;
+  repeated AppCollectorsMapProto registered_collectors = 4;
 }
 
 message NodeHeartbeatResponseProto {
@@ -61,7 +61,7 @@ message NodeHeartbeatResponseProto {
   optional string diagnostics_message = 8;
   repeated ContainerIdProto containers_to_be_removed_from_nm = 9;
   repeated SystemCredentialsForAppsProto system_credentials_for_apps = 10;
-  repeated AppAggregatorsMapProto app_aggregators_map = 11;
+  repeated AppCollectorsMapProto app_collectors_map = 11;
 }
 
 message SystemCredentialsForAppsProto {
@@ -70,21 +70,21 @@ message SystemCredentialsForAppsProto {
 }
 
 ////////////////////////////////////////////////////////////////////////
-////// From aggregator_nodemanager_protocol ////////////////////////////
+////// From collector_nodemanager_protocol ////////////////////////////
 ////////////////////////////////////////////////////////////////////////
-message AppAggregatorsMapProto {
+message AppCollectorsMapProto {
   optional ApplicationIdProto appId = 1;
-  optional string appAggregatorAddr = 2;
+  optional string appCollectorAddr = 2;
 }
 
 //////////////////////////////////////////////////////
-/////// aggregator_nodemanager_protocol //////////////
+/////// collector_nodemanager_protocol //////////////
 //////////////////////////////////////////////////////
-message ReportNewAggregatorsInfoRequestProto {
-  repeated AppAggregatorsMapProto app_aggregators = 1;
+message ReportNewCollectorInfoRequestProto {
+  repeated AppCollectorsMapProto app_collectors = 1;
 }
 
-message ReportNewAggregatorsInfoResponseProto {
+message ReportNewCollectorInfoResponseProto {
 }
 
 

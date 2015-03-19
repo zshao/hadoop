@@ -27,7 +27,7 @@ import org.apache.hadoop.yarn.api.records.impl.pb.ApplicationIdPBImpl;
 import org.apache.hadoop.yarn.proto.YarnProtos.ApplicationIdProto;
 import org.apache.hadoop.yarn.proto.YarnServerCommonProtos.MasterKeyProto;
 import org.apache.hadoop.yarn.proto.YarnServerCommonProtos.NodeStatusProto;
-import org.apache.hadoop.yarn.proto.YarnServerCommonServiceProtos.AppAggregatorsMapProto;
+import org.apache.hadoop.yarn.proto.YarnServerCommonServiceProtos.AppCollectorsMapProto;
 import org.apache.hadoop.yarn.proto.YarnServerCommonServiceProtos.NodeHeartbeatRequestProto;
 import org.apache.hadoop.yarn.proto.YarnServerCommonServiceProtos.NodeHeartbeatRequestProtoOrBuilder;
 import org.apache.hadoop.yarn.server.api.protocolrecords.NodeHeartbeatRequest;
@@ -44,7 +44,7 @@ public class NodeHeartbeatRequestPBImpl extends NodeHeartbeatRequest {
   private NodeStatus nodeStatus = null;
   private MasterKey lastKnownContainerTokenMasterKey = null;
   private MasterKey lastKnownNMTokenMasterKey = null;
-  Map<ApplicationId, String> registeredAggregators = null;
+  Map<ApplicationId, String> registeredCollectors = null;
   
   public NodeHeartbeatRequestPBImpl() {
     builder = NodeHeartbeatRequestProto.newBuilder();
@@ -89,19 +89,19 @@ public class NodeHeartbeatRequestPBImpl extends NodeHeartbeatRequest {
       builder.setLastKnownNmTokenMasterKey(
           convertToProtoFormat(this.lastKnownNMTokenMasterKey));
     }
-    
-    if (this.registeredAggregators != null) {
-      addRegisteredAggregatorsToProto();
+
+    if (this.registeredCollectors != null) {
+      addRegisteredCollectorsToProto();
     }
   }
-  
-  private void addRegisteredAggregatorsToProto() {
+
+  private void addRegisteredCollectorsToProto() {
     maybeInitBuilder();
-    builder.clearRegisteredAggregators();
-    for (Map.Entry<ApplicationId, String> entry : registeredAggregators.entrySet()) {
-      builder.addRegisteredAggregators(AppAggregatorsMapProto.newBuilder()
+    builder.clearRegisteredCollectors();
+    for (Map.Entry<ApplicationId, String> entry : registeredCollectors.entrySet()) {
+      builder.addRegisteredCollectors(AppCollectorsMapProto.newBuilder()
         .setAppId(convertToProtoFormat(entry.getKey()))
-        .setAppAggregatorAddr(entry.getValue()));
+        .setAppCollectorAddr(entry.getValue()));
     }
   }
 
@@ -185,35 +185,35 @@ public class NodeHeartbeatRequestPBImpl extends NodeHeartbeatRequest {
       builder.clearLastKnownNmTokenMasterKey();
     this.lastKnownNMTokenMasterKey = masterKey;
   }
-  
+
   @Override
-  public Map<ApplicationId, String> getRegisteredAggregators() {
-    if (this.registeredAggregators != null) {
-      return this.registeredAggregators;
+  public Map<ApplicationId, String> getRegisteredCollectors() {
+    if (this.registeredCollectors != null) {
+      return this.registeredCollectors;
     }
-    initRegisteredAggregators();
-    return registeredAggregators;
+    initRegisteredCollectors();
+    return registeredCollectors;
   }
-  
-  private void initRegisteredAggregators() {
+
+  private void initRegisteredCollectors() {
     NodeHeartbeatRequestProtoOrBuilder p = viaProto ? proto : builder;
-    List<AppAggregatorsMapProto> list = p.getRegisteredAggregatorsList();
-    this.registeredAggregators = new HashMap<ApplicationId, String> ();
-    for (AppAggregatorsMapProto c : list) {
+    List<AppCollectorsMapProto> list = p.getRegisteredCollectorsList();
+    this.registeredCollectors = new HashMap<ApplicationId, String> ();
+    for (AppCollectorsMapProto c : list) {
       ApplicationId appId = convertFromProtoFormat(c.getAppId());
-      this.registeredAggregators.put(appId, c.getAppAggregatorAddr());
+      this.registeredCollectors.put(appId, c.getAppCollectorAddr());
     }
   }
-  
+
   @Override
-  public void setRegisteredAggregators(
-      Map<ApplicationId, String> registeredAggregators) {
-    if (registeredAggregators == null || registeredAggregators.isEmpty()) {
+  public void setRegisteredCollectors(
+      Map<ApplicationId, String> registeredCollectors) {
+    if (registeredCollectors == null || registeredCollectors.isEmpty()) {
       return;
     }
     maybeInitBuilder();
-    this.registeredAggregators = new HashMap<ApplicationId, String>();
-    this.registeredAggregators.putAll(registeredAggregators);
+    this.registeredCollectors = new HashMap<ApplicationId, String>();
+    this.registeredCollectors.putAll(registeredCollectors);
   }
 
   private NodeStatusPBImpl convertFromProtoFormat(NodeStatusProto p) {
@@ -223,11 +223,11 @@ public class NodeHeartbeatRequestPBImpl extends NodeHeartbeatRequest {
   private NodeStatusProto convertToProtoFormat(NodeStatus t) {
     return ((NodeStatusPBImpl)t).getProto();
   }
-  
+
   private ApplicationIdPBImpl convertFromProtoFormat(ApplicationIdProto p) {
     return new ApplicationIdPBImpl(p);
   }
-  
+
   private ApplicationIdProto convertToProtoFormat(ApplicationId t) {
     return ((ApplicationIdPBImpl) t).getProto();
   }

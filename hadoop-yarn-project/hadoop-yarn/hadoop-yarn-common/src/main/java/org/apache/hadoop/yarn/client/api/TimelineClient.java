@@ -185,5 +185,5 @@ public abstract class TimelineClient extends AbstractService {
    *          the timeline service address
    */
   public abstract void setTimelineServiceAddress(String address);
-  
+
 }
