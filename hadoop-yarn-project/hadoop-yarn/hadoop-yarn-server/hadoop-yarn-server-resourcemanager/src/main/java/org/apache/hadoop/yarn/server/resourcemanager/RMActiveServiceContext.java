@@ -47,6 +47,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.security.DelegationTokenRen
 import org.apache.hadoop.yarn.server.resourcemanager.security.NMTokenSecretManagerInRM;
 import org.apache.hadoop.yarn.server.resourcemanager.security.RMContainerTokenSecretManager;
 import org.apache.hadoop.yarn.server.resourcemanager.security.RMDelegationTokenSecretManager;
+import org.apache.hadoop.yarn.server.resourcemanager.timelineservice.RMTimelineCollector;
 import org.apache.hadoop.yarn.util.Clock;
 import org.apache.hadoop.yarn.util.SystemClock;
 
@@ -94,6 +95,8 @@ public class RMActiveServiceContext {
   private ApplicationMasterService applicationMasterService;
   private RMApplicationHistoryWriter rmApplicationHistoryWriter;
   private SystemMetricsPublisher systemMetricsPublisher;
+  private RMTimelineCollector timelineCollector;
+
   private RMNodeLabelsManager nodeLabelManager;
   private long epoch;
   private Clock systemClock = new SystemClock();
@@ -372,6 +375,18 @@ public class RMActiveServiceContext {
   @Unstable
   public RMApplicationHistoryWriter getRMApplicationHistoryWriter() {
     return rmApplicationHistoryWriter;
+  }
+
+  @Private
+  @Unstable
+  public RMTimelineCollector getRMTimelineCollector() {
+    return timelineCollector;
+  }
+
+  @Private
+  @Unstable
+  public void setRMTimelineCollector(RMTimelineCollector timelineCollector) {
+    this.timelineCollector = timelineCollector;
   }
 
   @Private
