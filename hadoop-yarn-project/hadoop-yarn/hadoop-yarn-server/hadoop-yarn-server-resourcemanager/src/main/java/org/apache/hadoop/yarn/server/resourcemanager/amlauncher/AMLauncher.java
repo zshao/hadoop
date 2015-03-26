@@ -63,6 +63,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.event.RMAppAt
 import org.apache.hadoop.yarn.util.ConverterUtils;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.hadoop.yarn.util.timeline.TimelineUtils;
 
 /**
  * The launch of the AM itself.
@@ -217,7 +218,26 @@ public class AMLauncher implements Runnable {
     environment.put(ApplicationConstants.MAX_APP_ATTEMPTS_ENV,
         String.valueOf(rmContext.getRMApps().get(
             applicationId).getMaxAppAttempts()));
-
+    // Set flow context info
+    for (String tag :
+        rmContext.getRMApps().get(applicationId).getApplicationTags()) {
+      if (tag.startsWith(TimelineUtils.FLOW_ID_TAG_PREFIX  + ":") ||
+          tag.startsWith(TimelineUtils.FLOW_ID_TAG_PREFIX.toLowerCase() + ":")) {
+        String value = tag.substring(
+            TimelineUtils.FLOW_ID_TAG_PREFIX.length() + 1);
+        if (!value.isEmpty()) {
+          environment.put(TimelineUtils.FLOW_ID_TAG_PREFIX, value);
+        }
+      }
+      if (tag.startsWith(TimelineUtils.FLOW_RUN_ID_TAG_PREFIX  + ":") ||
+          tag.startsWith(TimelineUtils.FLOW_RUN_ID_TAG_PREFIX.toLowerCase() + ":")) {
+        String value = tag.substring(
+            TimelineUtils.FLOW_RUN_ID_TAG_PREFIX.length() + 1);
+        if (!value.isEmpty()) {
+          environment.put(TimelineUtils.FLOW_RUN_ID_TAG_PREFIX, value);
+        }
+      }
+    }
     Credentials credentials = new Credentials();
     DataInputByteBuffer dibb = new DataInputByteBuffer();
     if (container.getTokens() != null) {
