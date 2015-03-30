@@ -19,6 +19,7 @@
 package org.apache.hadoop.yarn.server.api.protocolrecords;
 
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.server.api.records.MasterKey;
@@ -29,7 +30,7 @@ public abstract class NodeHeartbeatRequest {
   
   public static NodeHeartbeatRequest newInstance(NodeStatus nodeStatus,
       MasterKey lastKnownContainerTokenMasterKey,
-      MasterKey lastKnownNMTokenMasterKey) {
+      MasterKey lastKnownNMTokenMasterKey, Set<String> nodeLabels) {
     NodeHeartbeatRequest nodeHeartbeatRequest =
         Records.newRecord(NodeHeartbeatRequest.class);
     nodeHeartbeatRequest.setNodeStatus(nodeStatus);
@@ -37,20 +38,19 @@ public abstract class NodeHeartbeatRequest {
         .setLastKnownContainerTokenMasterKey(lastKnownContainerTokenMasterKey);
     nodeHeartbeatRequest
         .setLastKnownNMTokenMasterKey(lastKnownNMTokenMasterKey);
+    nodeHeartbeatRequest.setNodeLabels(nodeLabels);
     return nodeHeartbeatRequest;
   }
 
   public static NodeHeartbeatRequest newInstance(NodeStatus nodeStatus,
       MasterKey lastKnownContainerTokenMasterKey,
-      MasterKey lastKnownNMTokenMasterKey,
+      MasterKey lastKnownNMTokenMasterKey, Set<String> nodeLabels,
       Map<ApplicationId, String> registeredCollectors) {
     NodeHeartbeatRequest nodeHeartbeatRequest =
-        Records.newRecord(NodeHeartbeatRequest.class);
-    nodeHeartbeatRequest.setNodeStatus(nodeStatus);
-    nodeHeartbeatRequest
-        .setLastKnownContainerTokenMasterKey(lastKnownContainerTokenMasterKey);
-    nodeHeartbeatRequest
-        .setLastKnownNMTokenMasterKey(lastKnownNMTokenMasterKey);
+        NodeHeartbeatRequest.newInstance(nodeStatus,
+            lastKnownContainerTokenMasterKey,
+            lastKnownNMTokenMasterKey,
+            nodeLabels);
     nodeHeartbeatRequest.setRegisteredCollectors(registeredCollectors);
     return nodeHeartbeatRequest;
   }
@@ -63,6 +63,9 @@ public abstract class NodeHeartbeatRequest {
   
   public abstract MasterKey getLastKnownNMTokenMasterKey();
   public abstract void setLastKnownNMTokenMasterKey(MasterKey secretKey);
+  
+  public abstract Set<String> getNodeLabels();
+  public abstract void setNodeLabels(Set<String> nodeLabels);
 
   // This tells RM registered collectors' address info on this node
   public abstract Map<ApplicationId, String> getRegisteredCollectors();

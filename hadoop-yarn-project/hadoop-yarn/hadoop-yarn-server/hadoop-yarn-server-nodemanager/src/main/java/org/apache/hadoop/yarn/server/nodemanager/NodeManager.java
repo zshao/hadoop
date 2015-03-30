@@ -60,6 +60,7 @@ import org.apache.hadoop.yarn.server.nodemanager.containermanager.ContainerManag
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.application.Application;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.Container;
 import org.apache.hadoop.yarn.server.nodemanager.metrics.NodeManagerMetrics;
+import org.apache.hadoop.yarn.server.nodemanager.nodelabels.NodeLabelsProvider;
 import org.apache.hadoop.yarn.server.nodemanager.recovery.NMLeveldbStateStoreService;
 import org.apache.hadoop.yarn.server.nodemanager.recovery.NMNullStateStoreService;
 import org.apache.hadoop.yarn.server.nodemanager.recovery.NMStateStoreService;
@@ -82,13 +83,14 @@ public class NodeManager extends CompositeService
   protected final NodeManagerMetrics metrics = NodeManagerMetrics.create();
   private ApplicationACLsManager aclsManager;
   private NodeHealthCheckerService nodeHealthChecker;
+  private NodeLabelsProvider nodeLabelsProvider;
   private LocalDirsHandlerService dirsHandler;
   private Context context;
   private AsyncDispatcher dispatcher;
   private ContainerManagerImpl containerManager;
   private NMCollectorService nmCollectorService;
   private NodeStatusUpdater nodeStatusUpdater;
-  private static CompositeServiceShutdownHook nodeManagerShutdownHook;
+  private static CompositeServiceShutdownHook nodeManagerShutdownHook; 
   private NMStateStoreService nmStore = null;
   
   private AtomicBoolean isStopping = new AtomicBoolean(false);
@@ -101,7 +103,22 @@ public class NodeManager extends CompositeService
   protected NodeStatusUpdater createNodeStatusUpdater(Context context,
       Dispatcher dispatcher, NodeHealthCheckerService healthChecker) {
     return new NodeStatusUpdaterImpl(context, dispatcher, healthChecker,
-      metrics);
+        metrics, nodeLabelsProvider);
+  }
+
+  protected NodeStatusUpdater createNodeStatusUpdater(Context context,
+      Dispatcher dispatcher, NodeHealthCheckerService healthChecker,
+      NodeLabelsProvider nodeLabelsProvider) {
+    return new NodeStatusUpdaterImpl(context, dispatcher, healthChecker,
+        metrics, nodeLabelsProvider);
+  }
+
+  @VisibleForTesting
+  protected NodeLabelsProvider createNodeLabelsProvider(
+      Configuration conf) throws IOException {
+    // TODO as part of YARN-2729
+    // Need to get the implementation of provider service and return
+    return null;
   }
 
   protected NodeResourceMonitor createNodeResourceMonitor() {
@@ -252,9 +269,18 @@ public class NodeManager extends CompositeService
 
     this.context = createNMContext(containerTokenSecretManager,
         nmTokenSecretManager, nmStore, conf);
-    
-    nodeStatusUpdater =
-        createNodeStatusUpdater(context, dispatcher, nodeHealthChecker);
+
+    nodeLabelsProvider = createNodeLabelsProvider(conf);
+
+    if (null == nodeLabelsProvider) {
+      nodeStatusUpdater =
+          createNodeStatusUpdater(context, dispatcher, nodeHealthChecker);
+    } else {
+      addService(nodeLabelsProvider);
+      nodeStatusUpdater =
+          createNodeStatusUpdater(context, dispatcher, nodeHealthChecker,
+              nodeLabelsProvider);
+    }
 
     NodeResourceMonitor nodeResourceMonitor = createNodeResourceMonitor();
     addService(nodeResourceMonitor);

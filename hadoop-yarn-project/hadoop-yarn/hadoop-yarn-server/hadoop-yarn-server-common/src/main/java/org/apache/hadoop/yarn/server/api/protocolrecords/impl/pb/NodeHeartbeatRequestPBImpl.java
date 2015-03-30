@@ -19,12 +19,16 @@
 package org.apache.hadoop.yarn.server.api.protocolrecords.impl.pb;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.impl.pb.ApplicationIdPBImpl;
 import org.apache.hadoop.yarn.proto.YarnProtos.ApplicationIdProto;
+import org.apache.hadoop.yarn.proto.YarnProtos.NodeIdToLabelsProto;
+import org.apache.hadoop.yarn.proto.YarnProtos.StringArrayProto;
 import org.apache.hadoop.yarn.proto.YarnServerCommonProtos.MasterKeyProto;
 import org.apache.hadoop.yarn.proto.YarnServerCommonProtos.NodeStatusProto;
 import org.apache.hadoop.yarn.proto.YarnServerCommonServiceProtos.AppCollectorsMapProto;
@@ -44,6 +48,7 @@ public class NodeHeartbeatRequestPBImpl extends NodeHeartbeatRequest {
   private NodeStatus nodeStatus = null;
   private MasterKey lastKnownContainerTokenMasterKey = null;
   private MasterKey lastKnownNMTokenMasterKey = null;
+  private Set<String> labels = null;
   Map<ApplicationId, String> registeredCollectors = null;
   
   public NodeHeartbeatRequestPBImpl() {
@@ -89,7 +94,11 @@ public class NodeHeartbeatRequestPBImpl extends NodeHeartbeatRequest {
       builder.setLastKnownNmTokenMasterKey(
           convertToProtoFormat(this.lastKnownNMTokenMasterKey));
     }
-
+    if (this.labels != null) {
+      builder.clearNodeLabels();
+      builder.setNodeLabels(StringArrayProto.newBuilder()
+          .addAllElements(this.labels).build());
+    }
     if (this.registeredCollectors != null) {
       addRegisteredCollectorsToProto();
     }
@@ -238,5 +247,31 @@ public class NodeHeartbeatRequestPBImpl extends NodeHeartbeatRequest {
 
   private MasterKeyProto convertToProtoFormat(MasterKey t) {
     return ((MasterKeyPBImpl)t).getProto();
+  }
+
+  @Override
+  public Set<String> getNodeLabels() {
+    initNodeLabels();
+    return this.labels;
+  }
+
+  @Override
+  public void setNodeLabels(Set<String> nodeLabels) {
+    maybeInitBuilder();
+    builder.clearNodeLabels();
+    this.labels = nodeLabels;
+  }
+  
+  private void initNodeLabels() {
+    if (this.labels != null) {
+      return;
+    }
+    NodeHeartbeatRequestProtoOrBuilder p = viaProto ? proto : builder;
+    if (!p.hasNodeLabels()) {
+      labels = null;
+      return;
+    }
+    StringArrayProto nodeLabels = p.getNodeLabels();
+    labels = new HashSet<String>(nodeLabels.getElementsList());
   }
 }  
