@@ -47,6 +47,7 @@ import org.apache.hadoop.yarn.api.ContainerManagementProtocol;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.NodeId;
+import org.apache.hadoop.yarn.client.api.TimelineClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.event.AsyncDispatcher;
 import org.apache.hadoop.yarn.event.Dispatcher;
@@ -132,9 +133,9 @@ public class NodeManager extends CompositeService
   protected NMContext createNMContext(
       NMContainerTokenSecretManager containerTokenSecretManager,
       NMTokenSecretManagerInNM nmTokenSecretManager,
-      NMStateStoreService stateStore) {
+      NMStateStoreService stateStore, Configuration conf) {
     return new NMContext(containerTokenSecretManager, nmTokenSecretManager,
-        dirsHandler, aclsManager, stateStore);
+        dirsHandler, aclsManager, stateStore, conf);
   }
 
   protected void doSecureLogin() throws IOException {
@@ -250,7 +251,7 @@ public class NodeManager extends CompositeService
     addService(nodeHealthChecker);
 
     this.context = createNMContext(containerTokenSecretManager,
-        nmTokenSecretManager, nmStore);
+        nmTokenSecretManager, nmStore, conf);
     
     nodeStatusUpdater =
         createNodeStatusUpdater(context, dispatcher, nodeHealthChecker);
@@ -346,6 +347,9 @@ public class NodeManager extends CompositeService
   public static class NMContext implements Context {
 
     private NodeId nodeId = null;
+    
+    private Configuration conf = null;
+    
     protected final ConcurrentMap<ApplicationId, Application> applications =
         new ConcurrentHashMap<ApplicationId, Application>();
 
@@ -356,9 +360,6 @@ public class NodeManager extends CompositeService
         new ConcurrentSkipListMap<ContainerId, Container>();
 
     protected Map<ApplicationId, String> registeredCollectors =
-        new ConcurrentHashMap<ApplicationId, String>();
-
-    protected Map<ApplicationId, String> knownCollectors =
         new ConcurrentHashMap<ApplicationId, String>();
 
     private final NMContainerTokenSecretManager containerTokenSecretManager;
@@ -375,7 +376,7 @@ public class NodeManager extends CompositeService
     public NMContext(NMContainerTokenSecretManager containerTokenSecretManager,
         NMTokenSecretManagerInNM nmTokenSecretManager,
         LocalDirsHandlerService dirsHandler, ApplicationACLsManager aclsManager,
-        NMStateStoreService stateStore) {
+        NMStateStoreService stateStore, Configuration conf) {
       this.containerTokenSecretManager = containerTokenSecretManager;
       this.nmTokenSecretManager = nmTokenSecretManager;
       this.dirsHandler = dirsHandler;
@@ -384,6 +385,7 @@ public class NodeManager extends CompositeService
       this.nodeHealthStatus.setHealthReport("Healthy");
       this.nodeHealthStatus.setLastHealthReportTime(System.currentTimeMillis());
       this.stateStore = stateStore;
+      this.conf = conf;
     }
 
     /**
@@ -402,6 +404,11 @@ public class NodeManager extends CompositeService
     @Override
     public ConcurrentMap<ApplicationId, Application> getApplications() {
       return this.applications;
+    }
+    
+    @Override
+    public Configuration getConf() {
+      return this.conf;
     }
 
     @Override
@@ -484,21 +491,8 @@ public class NodeManager extends CompositeService
     public void addRegisteredCollectors(
         Map<ApplicationId, String> newRegisteredCollectors) {
       this.registeredCollectors.putAll(newRegisteredCollectors);
-      // Update to knownCollectors as well so it can immediately be consumed by
-      // this NM's TimelineClient.
-      this.knownCollectors.putAll(newRegisteredCollectors);
     }
-
-    @Override
-    public Map<ApplicationId, String> getKnownCollectors() {
-      return this.knownCollectors;
-    }
-
-    public void addKnownCollectors(
-        Map<ApplicationId, String> knownCollectors) {
-      this.knownCollectors.putAll(knownCollectors);
-    }
-
+    
   }
 
 
