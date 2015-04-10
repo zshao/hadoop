@@ -67,6 +67,11 @@ public abstract class NodeHeartbeatRequest {
   public abstract Set<String> getNodeLabels();
   public abstract void setNodeLabels(Set<String> nodeLabels);
 
+  public abstract Map<ApplicationId, LogAggregationReport>
+      getLogAggregationReportsForApps();
+
+  public abstract void setLogAggregationReportsForApps(
+      Map<ApplicationId, LogAggregationReport> logAggregationReportsForApps);
   // This tells RM registered collectors' address info on this node
   public abstract Map<ApplicationId, String> getRegisteredCollectors();
   public abstract void setRegisteredCollectors(Map<ApplicationId,
