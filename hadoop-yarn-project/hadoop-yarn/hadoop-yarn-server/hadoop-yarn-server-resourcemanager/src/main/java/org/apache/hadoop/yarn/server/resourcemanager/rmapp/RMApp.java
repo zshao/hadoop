@@ -28,6 +28,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
+import org.apache.hadoop.yarn.api.records.LogAggregationStatus;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.ReservationId;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
@@ -262,4 +263,6 @@ public interface RMApp extends EventHandler<RMAppEvent> {
   ResourceRequest getAMResourceRequest();
 
   Map<NodeId, LogAggregationReport> getLogAggregationReportsForApp();
+
+  LogAggregationStatus getLogAggregationStatusForAppReport();
 }
