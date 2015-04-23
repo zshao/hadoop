@@ -823,4 +823,9 @@ public class TimelineClientImpl extends TimelineClient {
     new HelpFormatter().printHelp("TimelineClient", opts);
   }
 
+  @VisibleForTesting
+  @Private
+  public UserGroupInformation getUgi() {
+    return authUgi;
+  }
 }
