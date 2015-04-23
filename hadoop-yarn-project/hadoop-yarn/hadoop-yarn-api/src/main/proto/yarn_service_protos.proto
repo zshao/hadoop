@@ -214,7 +214,7 @@ message GetClusterNodeLabelsRequestProto {
 }
 
 message GetClusterNodeLabelsResponseProto {
-  repeated string nodeLabels = 1;
+  repeated NodeLabelProto nodeLabels = 1;
 }
 
 //////////////////////////////////////////////////////
