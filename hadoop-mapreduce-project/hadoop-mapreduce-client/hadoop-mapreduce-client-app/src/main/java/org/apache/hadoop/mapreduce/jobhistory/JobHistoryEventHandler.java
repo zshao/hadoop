@@ -75,6 +75,7 @@ import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
+import com.google.common.annotations.VisibleForTesting;
 /**
  * The job history events get routed to this class. This class writes the Job
  * history events to the DFS directly into a staging dir and then moved to a
@@ -1437,6 +1438,7 @@ public class JobHistoryEventHandler extends AbstractService
           if (!isTimerShutDown) {
             flushTimerTask = new FlushTimerTask(this);
             flushTimer.schedule(flushTimerTask, flushTimeout);
+            isTimerActive = true;
           }
         }
       }
@@ -1555,5 +1557,10 @@ public class JobHistoryEventHandler extends AbstractService
       return JobState.SUCCEEDED.toString();
     }
     return JobState.KILLED.toString();
+  }
+
+  @VisibleForTesting
+  boolean getFlushTimerStatus() {
+    return isTimerActive;
   }
 }
