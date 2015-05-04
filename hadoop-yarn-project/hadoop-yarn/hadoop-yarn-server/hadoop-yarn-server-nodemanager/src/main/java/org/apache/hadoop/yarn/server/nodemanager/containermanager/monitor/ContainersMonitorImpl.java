@@ -40,7 +40,6 @@ import org.apache.hadoop.yarn.api.records.ContainerExitStatus;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.timelineservice.ContainerEntity;
 import org.apache.hadoop.yarn.api.records.timelineservice.TimelineEntity;
-import org.apache.hadoop.yarn.api.records.timelineservice.TimelineEntityType;
 import org.apache.hadoop.yarn.api.records.timelineservice.TimelineMetric;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.event.AsyncDispatcher;
@@ -544,7 +543,7 @@ public class ContainersMonitorImpl extends AbstractService implements
                   ResourceCalculatorProcessTree.UNAVAILABLE) {
                 TimelineMetric memoryMetric = new TimelineMetric();
                 memoryMetric.setId(ContainerMetric.MEMORY.toString() + pId);
-                memoryMetric.addTimeSeriesData(currentTime, currentPmemUsage);
+                memoryMetric.addValue(currentTime, currentPmemUsage);
                 entity.addMetric(memoryMetric);
               }
               // if cpuUsageTotalCoresPercentage data is available
@@ -552,7 +551,7 @@ public class ContainersMonitorImpl extends AbstractService implements
                 ResourceCalculatorProcessTree.UNAVAILABLE) {
                 TimelineMetric cpuMetric = new TimelineMetric();
                 cpuMetric.setId(ContainerMetric.CPU.toString() + pId);
-                cpuMetric.addTimeSeriesData(currentTime, 
+                cpuMetric.addValue(currentTime,
                     cpuUsageTotalCoresPercentage);
                 entity.addMetric(cpuMetric);
               }
