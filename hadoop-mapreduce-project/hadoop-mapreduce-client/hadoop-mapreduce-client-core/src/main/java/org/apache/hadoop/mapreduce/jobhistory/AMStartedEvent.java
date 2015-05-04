@@ -37,6 +37,7 @@ import org.apache.avro.util.Utf8;
 public class AMStartedEvent implements HistoryEvent {
   private AMStarted datum = new AMStarted();
   private String forcedJobStateOnShutDown;
+  private long submitTime;
 
   /**
    * Create an event to record the start of an MR AppMaster
@@ -56,9 +57,9 @@ public class AMStartedEvent implements HistoryEvent {
    */
   public AMStartedEvent(ApplicationAttemptId appAttemptId, long startTime,
       ContainerId containerId, String nodeManagerHost, int nodeManagerPort,
-      int nodeManagerHttpPort) {
+      int nodeManagerHttpPort, long submitTime) {
     this(appAttemptId, startTime, containerId, nodeManagerHost,
-        nodeManagerPort, nodeManagerHttpPort, null);
+        nodeManagerPort, nodeManagerHttpPort, null, submitTime);
   }
 
   /**
@@ -81,7 +82,8 @@ public class AMStartedEvent implements HistoryEvent {
    */
   public AMStartedEvent(ApplicationAttemptId appAttemptId, long startTime,
       ContainerId containerId, String nodeManagerHost, int nodeManagerPort,
-      int nodeManagerHttpPort, String forcedJobStateOnShutDown) {
+      int nodeManagerHttpPort, String forcedJobStateOnShutDown,
+      long submitTime) {
     datum.applicationAttemptId = new Utf8(appAttemptId.toString());
     datum.startTime = startTime;
     datum.containerId = new Utf8(containerId.toString());
@@ -89,6 +91,7 @@ public class AMStartedEvent implements HistoryEvent {
     datum.nodeManagerPort = nodeManagerPort;
     datum.nodeManagerHttpPort = nodeManagerHttpPort;
     this.forcedJobStateOnShutDown = forcedJobStateOnShutDown;
+    this.submitTime = submitTime;
   }
 
   AMStartedEvent() {
@@ -150,6 +153,13 @@ public class AMStartedEvent implements HistoryEvent {
    */
   public String getForcedJobStateOnShutDown() {
     return this.forcedJobStateOnShutDown;
+  }
+
+  /**
+   * @return the submit time for the Application(Job)
+   */
+  public long getSubmitTime() {
+    return this.submitTime;
   }
 
   /** Get the attempt id */
