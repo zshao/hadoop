@@ -24,6 +24,7 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -142,6 +143,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.Capacity
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacitySchedulerConfiguration;
 import org.apache.hadoop.yarn.server.resourcemanager.security.QueueACLsManager;
 import org.apache.hadoop.yarn.server.resourcemanager.security.RMDelegationTokenSecretManager;
+import org.apache.hadoop.yarn.server.resourcemanager.timelineservice.RMTimelineCollectorManager;
 import org.apache.hadoop.yarn.server.security.ApplicationACLsManager;
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
 import org.apache.hadoop.yarn.util.Clock;
@@ -839,6 +841,9 @@ public class TestClientRMService {
         new EventHandler<Event>() {
           public void handle(Event event) {}
         });
+    doReturn(mock(RMTimelineCollectorManager.class)).when(rmContext)
+        .getRMTimelineCollectorManager();
+
     ApplicationId appId1 = getApplicationId(100);
 
     ApplicationACLsManager mockAclsManager = mock(ApplicationACLsManager.class);
@@ -926,6 +931,9 @@ public class TestClientRMService {
     mockRMContext(yarnScheduler, rmContext);
     RMStateStore stateStore = mock(RMStateStore.class);
     when(rmContext.getStateStore()).thenReturn(stateStore);
+    doReturn(mock(RMTimelineCollectorManager.class)).when(rmContext)
+    .getRMTimelineCollectorManager();
+
     RMAppManager appManager = new RMAppManager(rmContext, yarnScheduler,
         null, mock(ApplicationACLsManager.class), new Configuration());
     when(rmContext.getDispatcher().getEventHandler()).thenReturn(
@@ -1097,7 +1105,9 @@ public class TestClientRMService {
     };
 
     when(rmContext.getDispatcher().getEventHandler()).thenReturn(eventHandler);
-      
+    doReturn(mock(RMTimelineCollectorManager.class)).when(rmContext)
+        .getRMTimelineCollectorManager();
+
     final ClientRMService rmService =
         new ClientRMService(rmContext, yarnScheduler, appManager, null, null,
             null);
