@@ -208,6 +208,14 @@ public class MRAppMaster extends CompositeService {
   private SpeculatorEventDispatcher speculatorEventDispatcher;
   private AMPreemptionPolicy preemptionPolicy;
 
+  // After a task attempt completes from TaskUmbilicalProtocol's point of view,
+  // it will be transitioned to finishing state.
+  // taskAttemptFinishingMonitor is just a timer for attempts in finishing
+  // state. If the attempt stays in finishing state for too long,
+  // taskAttemptFinishingMonitor will notify the attempt via TA_TIMED_OUT
+  // event.
+  private TaskAttemptFinishingMonitor taskAttemptFinishingMonitor;
+
   private Job job;
   private Credentials jobCredentials = new Credentials(); // Filled during init
   protected UserGroupInformation currentUser; // Will be setup during init
@@ -250,6 +258,12 @@ public class MRAppMaster extends CompositeService {
     logSyncer = TaskLog.createLogSyncer();
     LOG.info("Created MRAppMaster for application " + applicationAttemptId);
   }
+  protected TaskAttemptFinishingMonitor createTaskAttemptFinishingMonitor(
+      EventHandler eventHandler) {
+    TaskAttemptFinishingMonitor monitor =
+        new TaskAttemptFinishingMonitor(eventHandler);
+    return monitor;
+  }
 
   @Override
   protected void serviceInit(final Configuration conf) throws Exception {
@@ -260,7 +274,11 @@ public class MRAppMaster extends CompositeService {
 
     initJobCredentialsAndUGI(conf);
 
-    context = new RunningAppContext(conf);
+    dispatcher = createDispatcher();
+    addIfService(dispatcher);
+    taskAttemptFinishingMonitor = createTaskAttemptFinishingMonitor(dispatcher.getEventHandler());
+    addIfService(taskAttemptFinishingMonitor);
+    context = new RunningAppContext(conf, taskAttemptFinishingMonitor);
 
     // Job name is the same as the app name util we support DAG of jobs
     // for an app later
@@ -327,9 +345,6 @@ public class MRAppMaster extends CompositeService {
     }
     
     if (errorHappenedShutDown) {
-      dispatcher = createDispatcher();
-      addIfService(dispatcher);
-      
       NoopEventHandler eater = new NoopEventHandler();
       //We do not have a JobEventDispatcher in this path
       dispatcher.register(JobEventType.class, eater);
@@ -375,9 +390,6 @@ public class MRAppMaster extends CompositeService {
       }
     } else {
       committer = createOutputCommitter(conf);
-
-      dispatcher = createDispatcher();
-      addIfService(dispatcher);
 
       //service to handle requests from JobClient
       clientService = createClientService(context);
@@ -967,10 +979,14 @@ public class MRAppMaster extends CompositeService {
     private final ClientToAMTokenSecretManager clientToAMTokenSecretManager;
     private TimelineClient timelineClient = null;
 
-    public RunningAppContext(Configuration config) {
+    private final TaskAttemptFinishingMonitor taskAttemptFinishingMonitor;
+
+    public RunningAppContext(Configuration config,
+        TaskAttemptFinishingMonitor taskAttemptFinishingMonitor) {
       this.conf = config;
       this.clientToAMTokenSecretManager =
           new ClientToAMTokenSecretManager(appAttemptID, null);
+      this.taskAttemptFinishingMonitor = taskAttemptFinishingMonitor;
       if (conf.getBoolean(MRJobConfig.MAPREDUCE_JOB_EMIT_TIMELINE_DATA,
               MRJobConfig.DEFAULT_MAPREDUCE_JOB_EMIT_TIMELINE_DATA)
             && conf.getBoolean(YarnConfiguration.TIMELINE_SERVICE_ENABLED,
@@ -1072,7 +1088,12 @@ public class MRAppMaster extends CompositeService {
     public String getNMHostname() {
       return nmHost;
     }
-    
+
+    @Override
+    public TaskAttemptFinishingMonitor getTaskAttemptFinishingMonitor() {
+      return taskAttemptFinishingMonitor;
+    }
+
     // Get Timeline Collector's address (get sync from RM)
     public TimelineClient getTimelineClient() {
       return timelineClient;
