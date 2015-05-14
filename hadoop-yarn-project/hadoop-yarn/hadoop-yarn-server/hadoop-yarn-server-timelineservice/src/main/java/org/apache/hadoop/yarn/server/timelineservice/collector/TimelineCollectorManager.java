@@ -43,11 +43,11 @@ import java.util.Map;
  */
 @InterfaceAudience.Private
 @InterfaceStability.Unstable
-public abstract class TimelineCollectorManager extends AbstractService {
+public class TimelineCollectorManager extends AbstractService {
   private static final Log LOG =
       LogFactory.getLog(TimelineCollectorManager.class);
 
-  protected TimelineWriter writer;
+  private TimelineWriter writer;
 
   @Override
   public void serviceInit(Configuration conf) throws Exception {
@@ -65,8 +65,12 @@ public abstract class TimelineCollectorManager extends AbstractService {
       Collections.synchronizedMap(
           new HashMap<ApplicationId, TimelineCollector>());
 
-  protected TimelineCollectorManager(String name) {
+  public TimelineCollectorManager(String name) {
     super(name);
+  }
+
+  protected TimelineWriter getWriter() {
+    return writer;
   }
 
   /**
