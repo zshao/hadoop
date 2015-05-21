@@ -35,6 +35,8 @@ import org.apache.hadoop.yarn.webapp.WebApps;
 import org.apache.hadoop.yarn.webapp.YarnWebParams;
 import org.apache.hadoop.yarn.webapp.util.WebAppUtils;
 
+import com.sun.jersey.guice.spi.container.servlet.GuiceContainer;
+
 public class WebServer extends AbstractService {
 
   private static final Log LOG = LogFactory.getLog(WebServer.class);
@@ -128,5 +130,9 @@ public class WebServer extends AbstractService {
       route("/errors-and-warnings", NMController.class, "errorsAndWarnings");
     }
 
+    @Override
+    protected Class<? extends GuiceContainer> getWebAppFilterClass() {
+      return NMWebAppFilter.class;
+    }
   }
 }
