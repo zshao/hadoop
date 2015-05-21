@@ -59,6 +59,13 @@ public class TimelineCollectorManager extends AbstractService {
     super.serviceInit(conf);
   }
 
+  @Override
+  protected void serviceStart() throws Exception {
+    super.serviceStart();
+    if (writer != null) {
+      writer.start();
+    }
+  }
 
   // access to this map is synchronized with the map itself
   private final Map<ApplicationId, TimelineCollector> collectors =
@@ -151,4 +158,16 @@ public class TimelineCollectorManager extends AbstractService {
     return collectors.containsKey(appId);
   }
 
+  @Override
+  protected void serviceStop() throws Exception {
+    if (collectors != null && collectors.size() > 1) {
+      for (TimelineCollector c : collectors.values()) {
+        c.serviceStop();
+      }
+    }
+    if (writer != null) {
+      writer.close();
+    }
+    super.serviceStop();
+  }
 }
