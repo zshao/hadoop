@@ -17,24 +17,23 @@
  */
 package org.apache.hadoop.hdfs.server.blockmanagement;
 
-import java.util.Iterator;
-
+import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
+import com.google.common.collect.Iterables;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeStorageInfo.AddBlockResult;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeStorage;
 import org.apache.hadoop.util.GSet;
 import org.apache.hadoop.util.LightWeightGSet;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
-import com.google.common.collect.Iterables;
+import java.util.Iterator;
 
 /**
  * This class maintains the map from a block to its metadata.
  * block's metadata currently includes blockCollection it belongs to and
  * the datanodes that store the block.
  */
-class BlocksMap {
+public class BlocksMap {
   private static class StorageIterator implements Iterator<DatanodeStorageInfo> {
     private final BlockInfoContiguous blockInfo;
     private int nextIdx = 0;
@@ -64,6 +63,11 @@ class BlocksMap {
   private final int capacity;
   
   private GSet<Block, BlockInfoContiguous> blocks;
+
+  public BlocksMap(int capacity, GSet<Block, BlockInfoContiguous> b) {
+    this.capacity = capacity;
+    this.blocks = b;
+  }
 
   BlocksMap(int capacity) {
     // Use 2% of total memory to size the GSet capacity

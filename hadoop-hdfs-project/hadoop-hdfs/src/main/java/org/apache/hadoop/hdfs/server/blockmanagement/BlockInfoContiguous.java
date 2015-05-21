@@ -17,12 +17,12 @@
  */
 package org.apache.hadoop.hdfs.server.blockmanagement;
 
-import java.util.LinkedList;
-
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.BlockUCState;
 import org.apache.hadoop.util.LightWeightGSet;
+
+import java.util.LinkedList;
 
 /**
  * BlockInfo class maintains for a given block
@@ -96,7 +96,7 @@ public class BlockInfoContiguous extends Block
     return storage == null ? null : storage.getDatanodeDescriptor();
   }
 
-  DatanodeStorageInfo getStorageInfo(int index) {
+  public DatanodeStorageInfo getStorageInfo(int index) {
     assert this.triplets != null : "BlockInfo is not initialized";
     assert index >= 0 && index*3 < triplets.length : "Index is out of bound";
     return (DatanodeStorageInfo)triplets[index*3];
