@@ -313,7 +313,7 @@ public abstract class MockAsm extends MockApps {
             getName(), null, 0, null, null, getDiagnostics().toString(), 
             getTrackingUrl(), getStartTime(), getFinishTime(), 
             getFinalApplicationStatus(), usageReport , null, getProgress(),
-            type, null);
+            type, null, null);
         return report;
       }
 
