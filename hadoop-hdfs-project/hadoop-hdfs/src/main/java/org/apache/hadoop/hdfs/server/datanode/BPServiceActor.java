@@ -43,6 +43,7 @@ import org.apache.hadoop.hdfs.protocol.RollingUpgradeStatus;
 import org.apache.hadoop.hdfs.protocol.UnregisteredNodeException;
 import org.apache.hadoop.hdfs.protocolPB.DatanodeProtocolClientSideTranslatorPB;
 import org.apache.hadoop.hdfs.server.common.IncorrectVersionException;
+import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
 import org.apache.hadoop.hdfs.server.namenode.FSNamesystem;
 import org.apache.hadoop.hdfs.server.protocol.BlockReportContext;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeCommand;
@@ -110,6 +111,7 @@ class BPServiceActor implements Runnable {
   private volatile boolean sendImmediateIBR = false;
   private volatile boolean shouldServiceRun = true;
   private final DataNode dn;
+  private FsDatasetSpi<?> dataset = null;
   private final DNConf dnConf;
   private long prevBlockReportId;
 
@@ -220,7 +222,7 @@ class BPServiceActor implements Runnable {
     // Verify that this matches the other NN in this HA pair.
     // This also initializes our block pool in the DN if we are
     // the first NN connection for this BP.
-    bpos.verifyAndSetNamespaceInfo(nsInfo);
+    dataset = bpos.verifyAndSetNamespaceInfo(nsInfo);
     
     // Second phase of the handshake with the NN.
     register(nsInfo);
@@ -330,7 +332,7 @@ class BPServiceActor implements Runnable {
       String storageUuid, boolean now) {
     synchronized (pendingIncrementalBRperStorage) {
       addPendingReplicationBlockInfo(
-          bInfo, dn.getFSDataset().getStorage(storageUuid));
+          bInfo, dataset.getStorage(storageUuid));
       sendImmediateIBR = true;
       // If now is true, the report is sent right away.
       // Otherwise, it will be sent out in the next heartbeat.
@@ -344,7 +346,7 @@ class BPServiceActor implements Runnable {
       ReceivedDeletedBlockInfo bInfo, String storageUuid) {
     synchronized (pendingIncrementalBRperStorage) {
       addPendingReplicationBlockInfo(
-          bInfo, dn.getFSDataset().getStorage(storageUuid));
+          bInfo, dataset.getStorage(storageUuid));
     }
   }
 
@@ -435,7 +437,7 @@ class BPServiceActor implements Runnable {
 
     long brCreateStartTime = monotonicNow();
     Map<DatanodeStorage, BlockListAsLongs> perVolumeBlockLists =
-        dn.getFSDataset().getBlockReports(bpos.getBlockPoolId());
+        dataset.getBlockReports(bpos.getBlockPoolId());
 
     // Convert the reports to the format expected by the NN.
     int i = 0;
@@ -508,7 +510,7 @@ class BPServiceActor implements Runnable {
 
   DatanodeCommand cacheReport() throws IOException {
     // If caching is disabled, do not send a cache report
-    if (dn.getFSDataset().getCacheCapacity() == 0) {
+    if (dataset.getCacheCapacity() == 0) {
       return null;
     }
     // send cache report if timer has expired.
@@ -521,7 +523,7 @@ class BPServiceActor implements Runnable {
       lastCacheReport = startTime;
 
       String bpid = bpos.getBlockPoolId();
-      List<Long> blockIds = dn.getFSDataset().getCacheReport(bpid);
+      List<Long> blockIds = dataset.getCacheReport(bpid);
       long createTime = monotonicNow();
 
       cmd = bpNamenode.cacheReport(bpRegistration, bpid, blockIds);
@@ -540,20 +542,20 @@ class BPServiceActor implements Runnable {
   
   HeartbeatResponse sendHeartBeat() throws IOException {
     StorageReport[] reports =
-        dn.getFSDataset().getStorageReports(bpos.getBlockPoolId());
+        dataset.getStorageReports(bpos.getBlockPoolId());
     if (LOG.isDebugEnabled()) {
       LOG.debug("Sending heartbeat with " + reports.length +
                 " storage reports from service actor: " + this);
     }
     
-    VolumeFailureSummary volumeFailureSummary = dn.getFSDataset()
-        .getVolumeFailureSummary();
+    VolumeFailureSummary volumeFailureSummary =
+        dataset.getVolumeFailureSummary();
     int numFailedVolumes = volumeFailureSummary != null ?
         volumeFailureSummary.getFailedStorageLocations().length : 0;
     return bpNamenode.sendHeartbeat(bpRegistration,
         reports,
-        dn.getFSDataset().getCacheCapacity(),
-        dn.getFSDataset().getCacheUsed(),
+        dataset.getCacheCapacity(),
+        dataset.getCacheUsed(),
         dn.getXmitsInProgress(),
         dn.getXceiverCount(),
         numFailedVolumes,

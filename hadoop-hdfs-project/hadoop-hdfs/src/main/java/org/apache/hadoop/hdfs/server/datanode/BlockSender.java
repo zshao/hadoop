@@ -38,6 +38,7 @@ import org.apache.hadoop.hdfs.DFSUtil;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.protocol.datatransfer.PacketHeader;
+import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeReference;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.LengthInputStream;
 import org.apache.hadoop.hdfs.util.DataTransferThrottler;
@@ -147,6 +148,7 @@ class BlockSender implements java.io.Closeable {
   private final String clientTraceFmt;
   private volatile ChunkChecksum lastChunkChecksum = null;
   private DataNode datanode;
+  private final FsDatasetSpi<?> dataset;
   
   /** The file descriptor of the block being sent */
   private FileDescriptor blockInFd;
@@ -190,7 +192,8 @@ class BlockSender implements java.io.Closeable {
    */
   BlockSender(ExtendedBlock block, long startOffset, long length,
               boolean corruptChecksumOk, boolean verifyChecksum,
-              boolean sendChecksum, DataNode datanode, String clientTraceFmt,
+              boolean sendChecksum, DataNode datanode,
+              final FsDatasetSpi<?> dataset, String clientTraceFmt,
               CachingStrategy cachingStrategy)
       throws IOException {
     try {
@@ -227,6 +230,7 @@ class BlockSender implements java.io.Closeable {
         this.readaheadLength = cachingStrategy.getReadahead().longValue();
       }
       this.datanode = datanode;
+      this.dataset = dataset;
       
       if (verifyChecksum) {
         // To simplify implementation, callers may not specify verification
@@ -237,7 +241,7 @@ class BlockSender implements java.io.Closeable {
       
       final Replica replica;
       final long replicaVisibleLength;
-      synchronized(datanode.data) { 
+      synchronized(dataset) {
         replica = getReplica(block, datanode);
         replicaVisibleLength = replica.getVisibleLength();
       }
@@ -274,7 +278,7 @@ class BlockSender implements java.io.Closeable {
         (!is32Bit || length <= Integer.MAX_VALUE);
 
       // Obtain a reference before reading data
-      this.volumeRef = datanode.data.getVolume(block).obtainReference();
+      this.volumeRef = dataset.getVolume(block).obtainReference();
 
       /* 
        * (corruptChecksumOK, meta_file_exist): operation
@@ -288,7 +292,7 @@ class BlockSender implements java.io.Closeable {
         LengthInputStream metaIn = null;
         boolean keepMetaInOpen = false;
         try {
-          metaIn = datanode.data.getMetaDataInputStream(block);
+          metaIn = dataset.getMetaDataInputStream(block);
           if (!corruptChecksumOk || metaIn != null) {
             if (metaIn == null) {
               //need checksum but meta-data not found
@@ -387,7 +391,7 @@ class BlockSender implements java.io.Closeable {
       if (DataNode.LOG.isDebugEnabled()) {
         DataNode.LOG.debug("replica=" + replica);
       }
-      blockIn = datanode.data.getBlockInputStream(block, offset); // seek to offset
+      blockIn = dataset.getBlockInputStream(block, offset); // seek to offset
       if (blockIn instanceof FileInputStream) {
         blockInFd = ((FileInputStream)blockIn).getFD();
       } else {
@@ -451,8 +455,10 @@ class BlockSender implements java.io.Closeable {
   
   private static Replica getReplica(ExtendedBlock block, DataNode datanode)
       throws ReplicaNotFoundException {
-    Replica replica = datanode.data.getReplica(block.getBlockPoolId(),
-        block.getBlockId());
+    final FsDatasetSpi<?> dataset =
+        datanode.getFSDataset(block.getBlockPoolId());
+    Replica replica =
+        dataset.getReplica(block.getBlockPoolId(), block.getBlockId());
     if (replica == null) {
       throw new ReplicaNotFoundException(block);
     }

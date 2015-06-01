@@ -48,6 +48,7 @@ import org.apache.hadoop.hdfs.protocol.datatransfer.PacketReceiver;
 import org.apache.hadoop.hdfs.protocol.datatransfer.PipelineAck;
 import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.BlockOpResponseProto;
 import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.Status;
+import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.ReplicaInputStreams;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.ReplicaOutputStreams;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeRegistration;
@@ -99,6 +100,7 @@ class BlockReceiver implements Closeable {
   private ReplicaOutputStreams streams;
   private DatanodeInfo srcDataNode = null;
   private final DataNode datanode;
+  private final FsDatasetSpi<?> dataset;
   volatile private boolean mirrorError;
 
   // Cache management state
@@ -141,8 +143,8 @@ class BlockReceiver implements Closeable {
       final BlockConstructionStage stage, 
       final long newGs, final long minBytesRcvd, final long maxBytesRcvd, 
       final String clientname, final DatanodeInfo srcDataNode,
-      final DataNode datanode, DataChecksum requestedChecksum,
-      CachingStrategy cachingStrategy,
+      final DataNode datanode, final FsDatasetSpi<?> dataset,
+      DataChecksum requestedChecksum, CachingStrategy cachingStrategy,
       final boolean allowLazyPersist,
       final boolean pinning) throws IOException {
     try{
@@ -152,6 +154,7 @@ class BlockReceiver implements Closeable {
       this.myAddr = myAddr;
       this.srcDataNode = srcDataNode;
       this.datanode = datanode;
+      this.dataset = dataset;
 
       this.clientname = clientname;
       this.isDatanode = clientname.length() == 0;
@@ -183,27 +186,27 @@ class BlockReceiver implements Closeable {
       // Open local disk out
       //
       if (isDatanode) { //replication or move
-        replicaHandler = datanode.data.createTemporary(storageType, block);
+        replicaHandler = dataset.createTemporary(storageType, block);
       } else {
         switch (stage) {
         case PIPELINE_SETUP_CREATE:
-          replicaHandler = datanode.data.createRbw(storageType, block, allowLazyPersist);
+          replicaHandler = dataset.createRbw(storageType, block, allowLazyPersist);
           datanode.notifyNamenodeReceivingBlock(
               block, replicaHandler.getReplica().getStorageUuid());
           break;
         case PIPELINE_SETUP_STREAMING_RECOVERY:
-          replicaHandler = datanode.data.recoverRbw(
+          replicaHandler = dataset.recoverRbw(
               block, newGs, minBytesRcvd, maxBytesRcvd);
           block.setGenerationStamp(newGs);
           break;
         case PIPELINE_SETUP_APPEND:
-          replicaHandler = datanode.data.append(block, newGs, minBytesRcvd);
+          replicaHandler = dataset.append(block, newGs, minBytesRcvd);
           block.setGenerationStamp(newGs);
           datanode.notifyNamenodeReceivingBlock(
               block, replicaHandler.getReplica().getStorageUuid());
           break;
         case PIPELINE_SETUP_APPEND_RECOVERY:
-          replicaHandler = datanode.data.recoverAppend(block, newGs, minBytesRcvd);
+          replicaHandler = dataset.recoverAppend(block, newGs, minBytesRcvd);
           block.setGenerationStamp(newGs);
           datanode.notifyNamenodeReceivingBlock(
               block, replicaHandler.getReplica().getStorageUuid());
@@ -212,7 +215,7 @@ class BlockReceiver implements Closeable {
         case TRANSFER_FINALIZED:
           // this is a transfer destination
           replicaHandler =
-              datanode.data.createTemporary(storageType, block);
+              dataset.createTemporary(storageType, block);
           break;
         default: throw new IOException("Unsupported stage " + stage + 
               " while receiving block " + block + " from " + inAddr);
@@ -717,7 +720,7 @@ class BlockReceiver implements Closeable {
         //
         if (syncBehindWrites) {
           if (syncBehindWritesInBackground) {
-            this.datanode.getFSDataset().submitBackgroundSyncFileRangeRequest(
+            dataset.submitBackgroundSyncFileRangeRequest(
                 block, outFd, lastCacheManagementOffset,
                 offsetInBlock - lastCacheManagementOffset,
                 NativeIO.POSIX.SYNC_FILE_RANGE_WRITE);
@@ -807,11 +810,11 @@ class BlockReceiver implements Closeable {
 
           if (stage == BlockConstructionStage.TRANSFER_RBW) {
             // for TRANSFER_RBW, convert temporary to RBW
-            datanode.data.convertTemporaryToRbw(block);
+            dataset.convertTemporaryToRbw(block);
           } else {
             // for isDatnode or TRANSFER_FINALIZED
             // Finalize the block.
-            datanode.data.finalizeBlock(block);
+            dataset.finalizeBlock(block);
           }
         }
         datanode.metrics.incrBlocksWritten();
@@ -904,7 +907,7 @@ class BlockReceiver implements Closeable {
    */
   private void cleanupBlock() throws IOException {
     if (isDatanode) {
-      datanode.data.unfinalizeBlock(block);
+      dataset.unfinalizeBlock(block);
     }
   }
 
@@ -921,7 +924,7 @@ class BlockReceiver implements Closeable {
     }
 
     // rollback the position of the meta file
-    datanode.data.adjustCrcChannelPosition(block, streams, checksumSize);
+    dataset.adjustCrcChannelPosition(block, streams, checksumSize);
   }
 
   /**
@@ -959,7 +962,7 @@ class BlockReceiver implements Closeable {
     byte[] buf = new byte[sizePartialChunk];
     byte[] crcbuf = new byte[checksumSize];
     try (ReplicaInputStreams instr =
-        datanode.data.getTmpInputStreams(block, blkoff, ckoff)) {
+        dataset.getTmpInputStreams(block, blkoff, ckoff)) {
       IOUtils.readFully(instr.getDataIn(), buf, 0, sizePartialChunk);
 
       // open meta file and read in crc value computer earlier
@@ -1298,11 +1301,11 @@ class BlockReceiver implements Closeable {
         BlockReceiver.this.close();
         endTime = ClientTraceLog.isInfoEnabled() ? System.nanoTime() : 0;
         block.setNumBytes(replicaInfo.getNumBytes());
-        datanode.data.finalizeBlock(block);
+        dataset.finalizeBlock(block);
       }
 
       if (pinning) {
-        datanode.data.setPinning(block);
+        dataset.setPinning(block);
       }
       
       datanode.closeBlock(

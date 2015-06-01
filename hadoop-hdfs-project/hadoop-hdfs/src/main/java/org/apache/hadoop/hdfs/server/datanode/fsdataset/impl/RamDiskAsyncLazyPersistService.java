@@ -53,6 +53,7 @@ class RamDiskAsyncLazyPersistService {
   private static final long THREADS_KEEP_ALIVE_SECONDS = 60;
 
   private final DataNode datanode;
+  private final FsDatasetImpl dataset;
   private final ThreadGroup threadGroup;
   private Map<File, ThreadPoolExecutor> executors
       = new HashMap<File, ThreadPoolExecutor>();
@@ -65,8 +66,10 @@ class RamDiskAsyncLazyPersistService {
    * The RamDiskAsyncLazyPersistService uses one ThreadPool per volume to do the async
    * disk operations.
    */
-  RamDiskAsyncLazyPersistService(DataNode datanode) {
+  RamDiskAsyncLazyPersistService(DataNode datanode,
+                                 final FsDatasetImpl dataset) {
     this.datanode = datanode;
+    this.dataset = dataset;
     this.threadGroup = new ThreadGroup(getClass().getSimpleName());
   }
 
@@ -234,7 +237,6 @@ class RamDiskAsyncLazyPersistService {
     @Override
     public void run() {
       boolean succeeded = false;
-      final FsDatasetImpl dataset = (FsDatasetImpl)datanode.getFSDataset();
       try (FsVolumeReference ref = this.targetVolume) {
         int smallBufferSize = DFSUtil.getSmallBufferSize(EMPTY_HDFS_CONF);
         // No FsDatasetImpl lock for the file copy

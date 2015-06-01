@@ -43,6 +43,7 @@ import org.apache.hadoop.hdfs.protocol.BlockListAsLongs;
 import org.apache.hadoop.hdfs.protocol.BlockLocalPathInfo;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.protocol.HdfsBlocksMetadata;
+import org.apache.hadoop.hdfs.server.common.HdfsServerConstants;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.ReplicaState;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeReference;
@@ -83,7 +84,8 @@ public class SimulatedFSDataset implements FsDatasetSpi<FsVolumeSpi> {
   static class Factory extends FsDatasetSpi.Factory<SimulatedFSDataset> {
     @Override
     public SimulatedFSDataset newInstance(DataNode datanode,
-        DataStorage storage, Configuration conf) throws IOException {
+        DataStorage storage, Configuration conf,
+        HdfsServerConstants.NodeType serviceType) throws IOException {
       return new SimulatedFSDataset(datanode, storage, conf);
     }
 

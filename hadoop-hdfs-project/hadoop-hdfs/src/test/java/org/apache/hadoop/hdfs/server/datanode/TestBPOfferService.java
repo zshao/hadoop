@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.anyString;
 
 import java.io.File;
 import java.io.IOException;
@@ -118,7 +119,8 @@ public class TestBPOfferService {
     mockFSDataset.addBlockPool(FAKE_BPID, conf);
 
     // Wire the dataset to the DN.
-    Mockito.doReturn(mockFSDataset).when(mockDn).getFSDataset();
+    Mockito.doReturn(mockFSDataset).when(mockDn).initBlockPool(Mockito.any(BPOfferService.class));
+    Mockito.doReturn(mockFSDataset).when(mockDn).getFSDataset(anyString());
   }
 
   /**
@@ -325,15 +327,16 @@ public class TestBPOfferService {
     Mockito.doReturn(DataNodeMetrics.create(conf, "fake dn")).
       when(mockDn).getMetrics();
     final AtomicInteger count = new AtomicInteger();
-    Mockito.doAnswer(new Answer<Void>() {
+    Mockito.doReturn(mockFSDataset).when(mockDn).getFSDataset(anyString());
+    Mockito.doAnswer(new Answer<FsDatasetSpi<?>>() {
       @Override
-      public Void answer(InvocationOnMock invocation) throws Throwable {
+      public FsDatasetSpi<?> answer(InvocationOnMock invocation) throws Throwable {
         if (count.getAndIncrement() == 0) {
           throw new IOException("faked initBlockPool exception");
         }
         // The initBlockPool is called again. Now mock init is done.
-        Mockito.doReturn(mockFSDataset).when(mockDn).getFSDataset();
-        return null;
+        Mockito.doReturn(mockFSDataset).when(mockDn).getFSDataset(anyString());
+        return mockFSDataset;
       }
     }).when(mockDn).initBlockPool(Mockito.any(BPOfferService.class));
     BPOfferService bpos = setupBPOSForNNs(mockDn, mockNN1, mockNN2);
@@ -563,10 +566,10 @@ public class TestBPOfferService {
       assertSame(mockNN1, bpos.getActiveNN());
       Mockito.doAnswer(new BPOfferServiceSynchronousCallAnswer(0))
           .when(mockNN1).errorReport(Mockito.any(DatanodeRegistration.class),
-          Mockito.anyInt(), Mockito.anyString());
+          Mockito.anyInt(), anyString());
       Mockito.doAnswer(new BPOfferServiceSynchronousCallAnswer(1))
           .when(mockNN2).errorReport(Mockito.any(DatanodeRegistration.class),
-          Mockito.anyInt(), Mockito.anyString());
+          Mockito.anyInt(), anyString());
       String errorString = "Can't send invalid block " + FAKE_BLOCK;
       bpos.trySendErrorReport(DatanodeProtocol.INVALID_BLOCK, errorString);
       bpos.trySendErrorReport(DatanodeProtocol.INVALID_BLOCK, errorString);
@@ -614,7 +617,7 @@ public class TestBPOfferService {
           }
         }
       }).when(mockNN1).errorReport(Mockito.any(DatanodeRegistration.class),
-          Mockito.anyInt(), Mockito.anyString());
+          Mockito.anyInt(), anyString());
       String errorString = "Can't send invalid block " + FAKE_BLOCK;
       bpos.trySendErrorReport(DatanodeProtocol.INVALID_BLOCK, errorString);
       Thread.sleep(10000);

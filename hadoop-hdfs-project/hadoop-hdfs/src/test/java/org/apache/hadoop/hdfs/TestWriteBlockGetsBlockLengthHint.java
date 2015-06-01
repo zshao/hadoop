@@ -23,6 +23,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
+import org.apache.hadoop.hdfs.server.common.HdfsServerConstants;
 import org.apache.hadoop.hdfs.server.datanode.*;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
 import org.apache.hadoop.test.GenericTestUtils;
@@ -73,7 +74,8 @@ public class TestWriteBlockGetsBlockLengthHint {
     static class Factory extends FsDatasetSpi.Factory<SimulatedFSDataset> {
       @Override
       public SimulatedFSDataset newInstance(DataNode datanode,
-          DataStorage storage, Configuration conf) throws IOException {
+          DataStorage storage, Configuration conf,
+          HdfsServerConstants.NodeType serviceType) throws IOException {
         return new FsDatasetChecker(storage, conf);
       }
 

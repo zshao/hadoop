@@ -308,7 +308,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
     volumes = new FsVolumeList(volumeFailureInfos, datanode.getBlockScanner(),
         blockChooserImpl);
     asyncDiskService = new FsDatasetAsyncDiskService(datanode, this);
-    asyncLazyPersistService = new RamDiskAsyncLazyPersistService(datanode);
+    asyncLazyPersistService = new RamDiskAsyncLazyPersistService(datanode, this);
     deletingBlock = new HashMap<String, Set<Long>>();
 
     for (int idx = 0; idx < storage.getNumStorageDirs(); idx++) {
@@ -347,9 +347,10 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
 
   /**
    * Gets initial volume failure information for all volumes that failed
-   * immediately at startup.  The method works by determining the set difference
-   * between all configured storage locations and the actual storage locations in
-   * use after attempting to put all of them into service.
+   * immediately at startup.  The method works by determining the set
+   * difference between all configured storage locations and the actual
+   * storage locations in use after attempting to put all of them into
+   * service.
    *
    * @return each storage location that has failed
    */

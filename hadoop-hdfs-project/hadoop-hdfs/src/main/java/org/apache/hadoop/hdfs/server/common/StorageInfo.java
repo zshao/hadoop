@@ -220,6 +220,15 @@ public class StorageInfo {
     this.layoutVersion = lv;
   }
 
+  /**
+   * Return the type of node serviced by this storage.
+   *
+   * @return type of node serviced by this storage.
+   */
+  public NodeType getNodeType() {
+    return storageType;
+  }
+
   public int getServiceLayoutVersion() {
     return storageType == NodeType.DATA_NODE ? HdfsServerConstants.DATANODE_LAYOUT_VERSION
         : HdfsServerConstants.NAMENODE_LAYOUT_VERSION;

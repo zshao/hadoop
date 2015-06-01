@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.hadoop.classification.InterfaceAudience;
+import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
@@ -41,6 +42,7 @@ import org.apache.hadoop.hdfs.protocol.BlockListAsLongs;
 import org.apache.hadoop.hdfs.protocol.BlockLocalPathInfo;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.protocol.HdfsBlocksMetadata;
+import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.NodeType;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.ReplicaState;
 import org.apache.hadoop.hdfs.server.datanode.DataNode;
 import org.apache.hadoop.hdfs.server.datanode.DataStorage;
@@ -68,6 +70,7 @@ import org.apache.hadoop.util.ReflectionUtils;
  * The default implementation stores replicas on local drives. 
  */
 @InterfaceAudience.Private
+@InterfaceStability.Unstable
 public interface FsDatasetSpi<V extends FsVolumeSpi> extends FSDatasetMBean {
   /**
    * A factory for creating {@link FsDatasetSpi} objects.
@@ -83,9 +86,10 @@ public interface FsDatasetSpi<V extends FsVolumeSpi> extends FSDatasetMBean {
       return ReflectionUtils.newInstance(clazz, conf);
     }
 
-    /** Create a new object. */
-    public abstract D newInstance(DataNode datanode, DataStorage storage,
-        Configuration conf) throws IOException;
+    /** Create a new dataset object for a specific service type. */
+    public abstract D newInstance(DataNode datanode,
+        DataStorage storage, Configuration conf,
+        NodeType serviceType) throws IOException;
 
     /** Does the factory create simulated objects? */
     public boolean isSimulated() {

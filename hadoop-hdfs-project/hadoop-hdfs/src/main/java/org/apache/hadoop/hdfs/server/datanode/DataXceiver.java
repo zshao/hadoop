@@ -76,6 +76,7 @@ import org.apache.hadoop.hdfs.server.common.HdfsServerConstants;
 import org.apache.hadoop.hdfs.server.datanode.DataNode.ShortCircuitFdsUnsupportedException;
 import org.apache.hadoop.hdfs.server.datanode.DataNode.ShortCircuitFdsVersionException;
 import org.apache.hadoop.hdfs.server.datanode.ShortCircuitRegistry.NewShmInfo;
+import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.LengthInputStream;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeRegistration;
 import org.apache.hadoop.hdfs.shortcircuit.ShortCircuitShm.SlotId;
@@ -312,8 +313,9 @@ class DataXceiver extends Receiver implements Runnable {
               "anything but a UNIX domain socket.");
         }
         if (slotId != null) {
-          boolean isCached = datanode.data.
-              isCached(blk.getBlockPoolId(), blk.getBlockId());
+          final String bpid = blk.getBlockPoolId();
+          boolean isCached = datanode.getFSDataset(bpid).
+              isCached(bpid, blk.getBlockId());
           datanode.shortCircuitRegistry.registerSlot(
               ExtendedBlockId.fromExtendedBlock(blk), slotId, isCached);
           registeredSlotId = slotId;
@@ -523,7 +525,14 @@ class DataXceiver extends Receiver implements Runnable {
         baseStream, smallBufferSize));
     checkAccess(out, true, block, blockToken,
         Op.READ_BLOCK, BlockTokenIdentifier.AccessMode.READ);
-  
+
+    final FsDatasetSpi<?> dataset =
+        datanode.getFSDataset(block.getBlockPoolId());
+    if (dataset == null) {
+      throw new IOException(
+          "Unknown or unitialized blockpool " + block.getBlockPoolId());
+    }
+
     // send the block
     BlockSender blockSender = null;
     DatanodeRegistration dnR = 
@@ -540,7 +549,7 @@ class DataXceiver extends Receiver implements Runnable {
     try {
       try {
         blockSender = new BlockSender(block, blockOffset, length,
-            true, false, sendChecksum, datanode, clientTraceFmt,
+            true, false, sendChecksum, datanode, dataset, clientTraceFmt,
             cachingStrategy);
       } catch(IOException e) {
         String msg = "opReadBlock " + block + " received exception " + e; 
@@ -630,6 +639,13 @@ class DataXceiver extends Receiver implements Runnable {
     final boolean isTransfer = stage == BlockConstructionStage.TRANSFER_RBW
         || stage == BlockConstructionStage.TRANSFER_FINALIZED;
     long size = 0;
+    final FsDatasetSpi<?> dataset =
+        datanode.getFSDataset(block.getBlockPoolId());
+    if (dataset == null) {
+      throw new IOException(
+          "Unknown or unitialized blockpool " + block.getBlockPoolId());
+    }
+
     // check single target for transfer-RBW/Finalized 
     if (isTransfer && targets.length > 0) {
       throw new IOException(stage + " does not support multiple targets "
@@ -683,12 +699,12 @@ class DataXceiver extends Receiver implements Runnable {
             peer.getRemoteAddressString(),
             peer.getLocalAddressString(),
             stage, latestGenerationStamp, minBytesRcvd, maxBytesRcvd,
-            clientname, srcDataNode, datanode, requestedChecksum,
+            clientname, srcDataNode, datanode, dataset, requestedChecksum,
             cachingStrategy, allowLazyPersist, pinning);
 
         storageUuid = blockReceiver.getStorageUuid();
       } else {
-        storageUuid = datanode.data.recoverClose(
+        storageUuid = dataset.recoverClose(
             block, latestGenerationStamp, minBytesRcvd);
       }
 
@@ -890,6 +906,12 @@ class DataXceiver extends Receiver implements Runnable {
     final int csize = checksum.getChecksumSize();
     final byte[] buffer = new byte[4*1024];
     MessageDigest digester = MD5Hash.getDigester();
+    final FsDatasetSpi<?> dataset =
+        datanode.getFSDataset(block.getBlockPoolId());
+    if (dataset == null) {
+      throw new IOException(
+          "Unknown or unitialized blockpool " + block.getBlockPoolId());
+    }
 
     long remaining = requestLength / bytesPerCRC * csize;
     for (int toDigest = 0; remaining > 0; remaining -= toDigest) {
@@ -904,7 +926,7 @@ class DataXceiver extends Receiver implements Runnable {
     int partialLength = (int) (requestLength % bytesPerCRC);
     if (partialLength > 0) {
       byte[] buf = new byte[partialLength];
-      final InputStream blockIn = datanode.data.getBlockInputStream(block,
+      final InputStream blockIn = dataset.getBlockInputStream(block,
           requestLength - partialLength);
       try {
         // Get the CRC of the partialLength.
@@ -928,14 +950,20 @@ class DataXceiver extends Receiver implements Runnable {
     checkAccess(out, true, block, blockToken,
         Op.BLOCK_CHECKSUM, BlockTokenIdentifier.AccessMode.READ);
     // client side now can specify a range of the block for checksum
+    final FsDatasetSpi<?> dataset =
+        datanode.getFSDataset(block.getBlockPoolId());
+    if (dataset == null) {
+      throw new IOException(
+          "Unknown or unitialized blockpool " + block.getBlockPoolId());
+    }
+
     long requestLength = block.getNumBytes();
     Preconditions.checkArgument(requestLength >= 0);
-    long visibleLength = datanode.data.getReplicaVisibleLength(block);
+    long visibleLength = dataset.getReplicaVisibleLength(block);
     boolean partialBlk = requestLength < visibleLength;
 
     updateCurrentThreadName("Reading metadata for block " + block);
-    final LengthInputStream metadataIn = datanode.data
-        .getMetaDataInputStream(block);
+    final LengthInputStream metadataIn = dataset.getMetaDataInputStream(block);
     
     final DataInputStream checksumIn = new DataInputStream(
         new BufferedInputStream(metadataIn, ioFileBufferSize));
@@ -986,6 +1014,13 @@ class DataXceiver extends Receiver implements Runnable {
   @Override
   public void copyBlock(final ExtendedBlock block,
       final Token<BlockTokenIdentifier> blockToken) throws IOException {
+    final FsDatasetSpi<?> dataset =
+        datanode.getFSDataset(block.getBlockPoolId());
+    if (dataset == null) {
+      throw new IOException(
+          "Unknown or unitialized blockpool " + block.getBlockPoolId());
+    }
+
     updateCurrentThreadName("Copying block " + block);
     // Read in the header
     if (datanode.isBlockTokenEnabled) {
@@ -1002,7 +1037,7 @@ class DataXceiver extends Receiver implements Runnable {
 
     }
     
-    if (datanode.data.getPinning(block)) {
+    if (dataset.getPinning(block)) {
       String msg = "Not able to copy block " + block.getBlockId() + " " +
           "to " + peer.getRemoteAddressString() + " because it's pinned ";
       LOG.info(msg);
@@ -1025,7 +1060,7 @@ class DataXceiver extends Receiver implements Runnable {
     try {
       // check if the block exists or not
       blockSender = new BlockSender(block, 0, -1, false, false, true, datanode, 
-          null, CachingStrategy.newDropBehind());
+          dataset, null, CachingStrategy.newDropBehind());
 
       // set up response stream
       OutputStream baseStream = getOutputStream();
@@ -1073,6 +1108,13 @@ class DataXceiver extends Receiver implements Runnable {
       final Token<BlockTokenIdentifier> blockToken,
       final String delHint,
       final DatanodeInfo proxySource) throws IOException {
+    final FsDatasetSpi<?> dataset =
+        datanode.getFSDataset(block.getBlockPoolId());
+    if (dataset == null) {
+      throw new IOException(
+          "Unknown or unitialized blockpool " + block.getBlockPoolId());
+    }
+
     updateCurrentThreadName("Replacing block " + block + " from " + delHint);
 
     /* read header */
@@ -1109,7 +1151,7 @@ class DataXceiver extends Receiver implements Runnable {
     try {
       // Move the block to different storage in the same datanode
       if (proxySource.equals(datanode.getDatanodeId())) {
-        ReplicaInfo oldReplica = datanode.data.moveBlockAcrossStorage(block,
+        ReplicaInfo oldReplica = dataset.moveBlockAcrossStorage(block,
             storageType);
         if (oldReplica != null) {
           LOG.info("Moved " + block + " from StorageType "
@@ -1164,7 +1206,7 @@ class DataXceiver extends Receiver implements Runnable {
         blockReceiver = new BlockReceiver(block, storageType,
             proxyReply, proxySock.getRemoteSocketAddress().toString(),
             proxySock.getLocalSocketAddress().toString(),
-            null, 0, 0, 0, "", null, datanode, remoteChecksum,
+            null, 0, 0, 0, "", null, datanode, dataset, remoteChecksum,
             CachingStrategy.newDropBehind(), false, false);
         
         // receive a block

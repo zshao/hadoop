@@ -1,0 +1,6 @@
+  Breakdown of HDFS-7240 sub-tasks:
+
+    HDFS-8210. Ozone: Implement storage container manager. (Jitendra Pandey)
+
+    HDFS-8392. Ozone: DataNode support for multiple datasets. (Arpit Agarwal)
+

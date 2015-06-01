@@ -22,12 +22,16 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.channels.ClosedChannelException;
 
+import org.apache.hadoop.classification.InterfaceAudience;
+import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 
 /**
  * This is an interface for the underlying volume.
  */
+@InterfaceAudience.Private
+@InterfaceStability.Unstable
 public interface FsVolumeSpi {
   /**
    * Obtain a reference object that had increased 1 reference count of the

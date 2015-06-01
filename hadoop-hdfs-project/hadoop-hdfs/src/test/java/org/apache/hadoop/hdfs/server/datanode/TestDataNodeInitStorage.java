@@ -26,6 +26,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
+import org.apache.hadoop.hdfs.server.common.HdfsServerConstants;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
 import org.junit.Test;
 
@@ -45,7 +46,7 @@ public class TestDataNodeInitStorage {
       @Override
       public SimulatedFsDatasetVerifier newInstance(
           DataNode datanode, DataStorage storage,
-          Configuration conf) throws IOException {
+          Configuration conf, HdfsServerConstants.NodeType serviceType) throws IOException {
         return new SimulatedFsDatasetVerifier(storage, conf);
       }
 

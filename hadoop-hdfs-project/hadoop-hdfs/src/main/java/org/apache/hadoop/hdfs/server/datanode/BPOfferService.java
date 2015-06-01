@@ -31,6 +31,7 @@ import org.apache.hadoop.hdfs.protocol.DatanodeInfo;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.protocol.RollingUpgradeStatus;
 import org.apache.hadoop.hdfs.protocolPB.DatanodeProtocolClientSideTranslatorPB;
+import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
 import org.apache.hadoop.hdfs.server.protocol.*;
 import org.apache.hadoop.hdfs.server.protocol.ReceivedDeletedBlockInfo.BlockStatus;
 
@@ -69,6 +70,8 @@ class BPOfferService {
   volatile DatanodeRegistration bpRegistration;
   
   private final DataNode dn;
+
+  private FsDatasetSpi<?> dataset = null;
 
   /**
    * A reference to the BPServiceActor associated with the currently
@@ -303,7 +306,8 @@ class BPOfferService {
    * verifies that this namespace matches (eg to prevent a misconfiguration
    * where a StandbyNode from a different cluster is specified)
    */
-  void verifyAndSetNamespaceInfo(NamespaceInfo nsInfo) throws IOException {
+  FsDatasetSpi<?> verifyAndSetNamespaceInfo(NamespaceInfo nsInfo)
+      throws IOException {
     writeLock();
     try {
       if (this.bpNSInfo == null) {
@@ -314,7 +318,7 @@ class BPOfferService {
         // The DN can now initialize its local storage if we are the
         // first BP to handshake, etc.
         try {
-          dn.initBlockPool(this);
+          dataset = dn.initBlockPool(this);
           success = true;
         } finally {
           if (!success) {
@@ -335,6 +339,7 @@ class BPOfferService {
     } finally {
       writeUnlock();
     }
+    return dataset;
   }
 
   /**
@@ -480,11 +485,11 @@ class BPOfferService {
     }
     String bpid = getBlockPoolId();
     if (!rollingUpgradeStatus.isFinalized()) {
-      dn.getFSDataset().enableTrash(bpid);
-      dn.getFSDataset().setRollingUpgradeMarker(bpid);
+      dataset.enableTrash(bpid);
+      dataset.setRollingUpgradeMarker(bpid);
     } else {
-      dn.getFSDataset().clearTrash(bpid);
-      dn.getFSDataset().clearRollingUpgradeMarker(bpid);
+      dataset.clearTrash(bpid);
+      dataset.clearRollingUpgradeMarker(bpid);
     }
   }
 
@@ -665,7 +670,7 @@ class BPOfferService {
       Block toDelete[] = bcmd.getBlocks();
       try {
         // using global fsdataset
-        dn.getFSDataset().invalidate(bcmd.getBlockPoolId(), toDelete);
+        dataset.invalidate(bcmd.getBlockPoolId(), toDelete);
       } catch(IOException e) {
         // Exceptions caught here are not expected to be disk-related.
         throw e;
@@ -676,13 +681,13 @@ class BPOfferService {
       LOG.info("DatanodeCommand action: DNA_CACHE for " +
         blockIdCmd.getBlockPoolId() + " of [" +
           blockIdArrayToString(blockIdCmd.getBlockIds()) + "]");
-      dn.getFSDataset().cache(blockIdCmd.getBlockPoolId(), blockIdCmd.getBlockIds());
+      dataset.cache(blockIdCmd.getBlockPoolId(), blockIdCmd.getBlockIds());
       break;
     case DatanodeProtocol.DNA_UNCACHE:
       LOG.info("DatanodeCommand action: DNA_UNCACHE for " +
         blockIdCmd.getBlockPoolId() + " of [" +
           blockIdArrayToString(blockIdCmd.getBlockIds()) + "]");
-      dn.getFSDataset().uncache(blockIdCmd.getBlockPoolId(), blockIdCmd.getBlockIds());
+      dataset.uncache(blockIdCmd.getBlockPoolId(), blockIdCmd.getBlockIds());
       break;
     case DatanodeProtocol.DNA_SHUTDOWN:
       // TODO: DNA_SHUTDOWN appears to be unused - the NN never sends this command
