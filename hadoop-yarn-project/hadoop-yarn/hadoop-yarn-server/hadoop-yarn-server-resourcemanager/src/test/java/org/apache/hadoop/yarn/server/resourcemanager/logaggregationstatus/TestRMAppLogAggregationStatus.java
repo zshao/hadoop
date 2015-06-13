@@ -90,7 +90,7 @@ public class TestRMAppLogAggregationStatus {
         new RMContextImpl(rmDispatcher, null, null, null,
           null, null, null, null, null,
           new RMApplicationHistoryWriter());
-    rmContext.setSystemMetricsPublisher(new SystemMetricsPublisher());
+    rmContext.setSystemMetricsPublisher(mock(SystemMetricsPublisher.class));
 
     rmContext
         .setRMTimelineCollectorManager(mock(RMTimelineCollectorManager.class));
