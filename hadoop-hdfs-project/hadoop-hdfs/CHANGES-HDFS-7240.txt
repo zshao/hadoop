@@ -4,3 +4,6 @@
 
     HDFS-8392. Ozone: DataNode support for multiple datasets. (Arpit Agarwal)
 
+    HDFS-8456. Ozone: Introduce STORAGE_CONTAINER_SERVICE as a new NodeType.
+    (Arpit Agarwal)
+

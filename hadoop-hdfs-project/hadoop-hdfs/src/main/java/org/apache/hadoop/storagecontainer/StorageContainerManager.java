@@ -27,6 +27,7 @@ import org.apache.hadoop.hdfs.protocolPB.DatanodeProtocolPB;
 import org.apache.hadoop.hdfs.protocolPB.DatanodeProtocolServerSideTranslatorPB;
 import org.apache.hadoop.hdfs.server.blockmanagement.BlockManager;
 import org.apache.hadoop.hdfs.server.blockmanagement.BlocksMap;
+import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.NodeType;
 import org.apache.hadoop.hdfs.server.namenode.NameNode;
 import org.apache.hadoop.hdfs.server.namenode.Namesystem;
 import org.apache.hadoop.hdfs.server.protocol.*;
@@ -253,7 +254,8 @@ public class StorageContainerManager
   }
 
   private NamespaceInfo unprotectedGetNamespaceInfo() {
-    return new NamespaceInfo(1, "random", "random", 2);
+    return new NamespaceInfo(1, "random", "random", 2,
+        NodeType.STORAGE_CONTAINER_SERVICE);
   }
 
   @Override
