@@ -173,7 +173,8 @@ public class StorageContainerManager
   public HeartbeatResponse sendHeartbeat(DatanodeRegistration registration,
       StorageReport[] reports, long dnCacheCapacity, long dnCacheUsed,
       int xmitsInProgress, int xceiverCount, int failedVolumes,
-      VolumeFailureSummary volumeFailureSummary) throws IOException {
+      VolumeFailureSummary volumeFailureSummary,
+               boolean requestFullBlockReportLease) throws IOException {
     ns.readLock();
     try {
       final int maxTransfer = blockManager.getMaxReplicationStreams()
@@ -184,7 +185,7 @@ public class StorageContainerManager
 
       return new HeartbeatResponse(cmds,
           new NNHAStatusHeartbeat(HAServiceProtocol.HAServiceState.ACTIVE,
-              txnId), null);
+              txnId), null, 0);
     } finally {
       ns.readUnlock();
     }

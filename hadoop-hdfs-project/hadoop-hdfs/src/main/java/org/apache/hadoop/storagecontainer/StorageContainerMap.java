@@ -21,6 +21,7 @@ package org.apache.hadoop.storagecontainer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import org.apache.hadoop.hdfs.protocol.Block;
+import org.apache.hadoop.hdfs.server.blockmanagement.BlockInfo;
 import org.apache.hadoop.hdfs.server.blockmanagement.BlockInfoContiguous;
 import org.apache.hadoop.util.GSet;
 
@@ -32,7 +33,7 @@ import java.util.Map;
  * Maps a storage container to its location on datanodes. Similar to
  * {@link org.apache.hadoop.hdfs.server.blockmanagement.BlocksMap}
  */
-public class StorageContainerMap implements GSet<Block, BlockInfoContiguous> {
+public class StorageContainerMap implements GSet<Block, BlockInfo> {
 
   private Map<Long, BitWiseTrieContainerMap> containerPrefixMap
       = new HashMap<Long, BitWiseTrieContainerMap>();
@@ -56,7 +57,7 @@ public class StorageContainerMap implements GSet<Block, BlockInfoContiguous> {
   }
 
   @Override
-  public BlockInfoContiguous put(BlockInfoContiguous element) {
+  public BlockInfoContiguous put(BlockInfo element) {
     BlockInfoContiguous info = getBlockInfoContiguous(element.getBlockId());
     if (info == null) {
       throw new IllegalStateException(
@@ -78,7 +79,7 @@ public class StorageContainerMap implements GSet<Block, BlockInfoContiguous> {
   }
 
   @Override
-  public Iterator<BlockInfoContiguous> iterator() {
+  public Iterator<BlockInfo> iterator() {
     // TODO : Support iteration
     throw new UnsupportedOperationException("");
   }
