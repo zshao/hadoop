@@ -265,13 +265,20 @@ public class DataNode extends ReconfigurableBase
     LogFactory.getLog(DataNode.class.getName() + ".clienttrace");
   
   private static final String USAGE =
-      "Usage: java DataNode [-regular | -rollback]\n" +
+      "Usage: hdfs datanode [-regular | -rollback | -rollingupgrade rollback" +
+      " ]\n" +
       "    -regular                 : Normal DataNode startup (default).\n" +
       "    -rollback                : Rollback a standard or rolling upgrade.\n" +
+      "    -rollingupgrade rollback : Rollback a rolling upgrade operation.\n" +
       "  Refer to HDFS documentation for the difference between standard\n" +
       "  and rolling upgrades.";
 
   static final int CURRENT_BLOCK_FORMAT_VERSION = 1;
+
+  /** A list of property that are reconfigurable at runtime. */
+  private static final List<String> RECONFIGURABLE_PROPERTIES =
+      Collections.unmodifiableList(
+          Arrays.asList(DFS_DATANODE_DATA_DIR_KEY));
 
   /**
    * Use {@link NetUtils#createSocketAddr(String)} instead.
@@ -474,6 +481,11 @@ public class DataNode extends ReconfigurableBase
             });
   }
 
+  @Override  // ReconfigurableBase
+  protected Configuration getNewConf() {
+    return new HdfsConfiguration();
+  }
+
   @Override
   public void reconfigurePropertyImpl(String property, String newVal)
       throws ReconfigurationException {
@@ -494,11 +506,9 @@ public class DataNode extends ReconfigurableBase
   /**
    * Get a list of the keys of the re-configurable properties in configuration.
    */
-  @Override
+  @Override // Reconfigurable
   public Collection<String> getReconfigurableProperties() {
-    List<String> reconfigurable =
-        Collections.unmodifiableList(Arrays.asList(DFS_DATANODE_DATA_DIR_KEY));
-    return reconfigurable;
+    return RECONFIGURABLE_PROPERTIES;
   }
 
   /**
@@ -3185,6 +3195,12 @@ public class DataNode extends ReconfigurableBase
   public ReconfigurationTaskStatus getReconfigurationStatus() throws IOException {
     checkSuperuserPrivilege();
     return getReconfigurationTaskStatus();
+  }
+
+  @Override // ClientDatanodeProtocol
+  public List<String> listReconfigurableProperties()
+      throws IOException {
+    return RECONFIGURABLE_PROPERTIES;
   }
 
   @Override // ClientDatanodeProtocol
