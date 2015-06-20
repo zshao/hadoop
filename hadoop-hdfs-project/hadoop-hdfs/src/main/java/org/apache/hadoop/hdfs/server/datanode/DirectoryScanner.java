@@ -44,6 +44,7 @@ import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants;
+import org.apache.hadoop.hdfs.server.datanode.fsdataset.DatasetSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
 import org.apache.hadoop.util.Daemon;
@@ -309,9 +310,14 @@ public class DirectoryScanner implements Runnable {
     }
   }
 
-  DirectoryScanner(DataNode datanode, FsDatasetSpi<?> dataset, Configuration conf) {
+  DirectoryScanner(DataNode datanode, DatasetSpi<?> dataset,
+                   Configuration conf) {
+    if (!(dataset instanceof FsDatasetSpi)) {
+      throw new IllegalArgumentException(
+          "DirectoryScanner not implemented for " + dataset.getClass());
+    }
     this.datanode = datanode;
-    this.dataset = dataset;
+    this.dataset = (FsDatasetSpi<?>) dataset;
     int interval = conf.getInt(DFSConfigKeys.DFS_DATANODE_DIRECTORYSCAN_INTERVAL_KEY,
         DFSConfigKeys.DFS_DATANODE_DIRECTORYSCAN_INTERVAL_DEFAULT);
     scanPeriodMsecs = interval * 1000L; //msec

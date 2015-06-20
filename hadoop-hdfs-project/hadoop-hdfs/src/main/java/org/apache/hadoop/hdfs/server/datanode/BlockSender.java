@@ -456,7 +456,7 @@ class BlockSender implements java.io.Closeable {
   private static Replica getReplica(ExtendedBlock block, DataNode datanode)
       throws ReplicaNotFoundException {
     final FsDatasetSpi<?> dataset =
-        datanode.getFSDataset(block.getBlockPoolId());
+        (FsDatasetSpi<?>) datanode.getDataset(block.getBlockPoolId());
     Replica replica =
         dataset.getReplica(block.getBlockPoolId(), block.getBlockId());
     if (replica == null) {

@@ -24,15 +24,14 @@ import java.nio.channels.ClosedChannelException;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
-import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 
 /**
- * This is an interface for the underlying volume.
+ * This is an interface for the underlying volume used by DFS.
  */
 @InterfaceAudience.Private
 @InterfaceStability.Unstable
-public interface FsVolumeSpi {
+public interface FsVolumeSpi extends VolumeSpi {
   /**
    * Obtain a reference object that had increased 1 reference count of the
    * volume.
@@ -42,29 +41,9 @@ public interface FsVolumeSpi {
    */
   FsVolumeReference obtainReference() throws ClosedChannelException;
 
-  /** @return the StorageUuid of the volume */
-  public String getStorageID();
-
-  /** @return a list of block pools. */
-  public String[] getBlockPoolList();
-
-  /** @return the available storage space in bytes. */
-  public long getAvailable() throws IOException;
-
-  /** @return the base path to the volume */
-  public String getBasePath();
-
-  /** @return the path to the volume */
-  public String getPath(String bpid) throws IOException;
-
   /** @return the directory for the finalized blocks in the block pool. */
   public File getFinalizedDir(String bpid) throws IOException;
   
-  public StorageType getStorageType();
-
-  /** Returns true if the volume is NOT backed by persistent storage. */
-  public boolean isTransientStorage();
-
   /**
    * Reserve disk space for an RBW block so a writer does not run out of
    * space before the block is full.
@@ -187,8 +166,6 @@ public interface FsVolumeSpi {
   public BlockIterator loadBlockIterator(String bpid, String name)
       throws IOException;
 
-  /**
-   * Get the FSDatasetSpi which this volume is a part of.
-   */
+  @Override
   public FsDatasetSpi getDataset();
 }

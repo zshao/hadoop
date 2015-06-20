@@ -45,6 +45,7 @@ import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.protocol.HdfsBlocksMetadata;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.ReplicaState;
+import org.apache.hadoop.hdfs.server.datanode.fsdataset.*;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeReference;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
@@ -81,7 +82,7 @@ import org.apache.hadoop.util.DataChecksum;
  */
 public class SimulatedFSDataset implements FsDatasetSpi<FsVolumeSpi> {
   public final static int BYTE_MASK = 0xff;
-  static class Factory extends FsDatasetSpi.Factory<SimulatedFSDataset> {
+  static class Factory extends DatasetSpi.Factory {
     @Override
     public SimulatedFSDataset newInstance(DataNode datanode,
         DataStorage storage, Configuration conf,
@@ -788,13 +789,18 @@ public class SimulatedFSDataset implements FsDatasetSpi<FsVolumeSpi> {
     }
   }
 
-  @Override // FSDatasetSpi
+  @Override // DatasetSpi
+  public boolean isCachingSupported() {
+    return false;
+  }
+
+  @Override // DatasetSpi
   public void cache(String bpid, long[] cacheBlks) {
     throw new UnsupportedOperationException(
         "SimulatedFSDataset does not support cache operation!");
   }
 
-  @Override // FSDatasetSpi
+  @Override // DatasetSpi
   public void uncache(String bpid, long[] uncacheBlks) {
     throw new UnsupportedOperationException(
         "SimulatedFSDataset does not support uncache operation!");

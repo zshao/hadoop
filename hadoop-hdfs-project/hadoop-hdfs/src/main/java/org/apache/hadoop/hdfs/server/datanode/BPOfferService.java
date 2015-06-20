@@ -31,7 +31,7 @@ import org.apache.hadoop.hdfs.protocol.DatanodeInfo;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.protocol.RollingUpgradeStatus;
 import org.apache.hadoop.hdfs.protocolPB.DatanodeProtocolClientSideTranslatorPB;
-import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
+import org.apache.hadoop.hdfs.server.datanode.fsdataset.DatasetSpi;
 import org.apache.hadoop.hdfs.server.protocol.*;
 import org.apache.hadoop.hdfs.server.protocol.ReceivedDeletedBlockInfo.BlockStatus;
 
@@ -71,7 +71,7 @@ class BPOfferService {
   
   private final DataNode dn;
 
-  private FsDatasetSpi<?> dataset = null;
+  private DatasetSpi<?> dataset = null;
 
   /**
    * A reference to the BPServiceActor associated with the currently
@@ -306,7 +306,7 @@ class BPOfferService {
    * verifies that this namespace matches (eg to prevent a misconfiguration
    * where a StandbyNode from a different cluster is specified)
    */
-  FsDatasetSpi<?> verifyAndSetNamespaceInfo(NamespaceInfo nsInfo)
+  DatasetSpi<?> verifyAndSetNamespaceInfo(NamespaceInfo nsInfo)
       throws IOException {
     writeLock();
     try {

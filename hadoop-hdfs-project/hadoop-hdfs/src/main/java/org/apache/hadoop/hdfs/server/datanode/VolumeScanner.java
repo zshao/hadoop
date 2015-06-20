@@ -34,6 +34,7 @@ import com.google.common.cache.CacheBuilder;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.server.datanode.BlockScanner.Conf;
+import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeReference;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi.BlockIterator;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
@@ -434,7 +435,7 @@ public class VolumeScanner extends Thread {
     try {
       blockSender = new BlockSender(block, 0, -1,
           false, true, true, datanode,
-          datanode.getFSDataset(block.getBlockPoolId()),
+          (FsDatasetSpi<?>) datanode.getDataset(block.getBlockPoolId()),
           null, CachingStrategy.newDropBehind());
       throttler.setBandwidth(bytesPerSec);
       long bytesRead = blockSender.sendBlock(nullStream, null, throttler);

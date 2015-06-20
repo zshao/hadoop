@@ -114,12 +114,12 @@ public class TestSimulatedFSDataset {
   @Test
   public void testFSDatasetFactory() {
     final Configuration conf = new Configuration();
-    FsDatasetSpi.Factory<?> f = FsDatasetSpi.Factory.getFactory(conf);
+    FsDatasetSpi.Factory f = FsDatasetSpi.Factory.getFactory(conf);
     assertEquals(FsDatasetFactory.class, f.getClass());
     assertFalse(f.isSimulated());
 
     SimulatedFSDataset.setFactory(conf);
-    FsDatasetSpi.Factory<?> s = FsDatasetSpi.Factory.getFactory(conf);
+    FsDatasetSpi.Factory s = FsDatasetSpi.Factory.getFactory(conf);
     assertEquals(SimulatedFSDataset.Factory.class, s.getClass());
     assertTrue(s.isSimulated());
   }

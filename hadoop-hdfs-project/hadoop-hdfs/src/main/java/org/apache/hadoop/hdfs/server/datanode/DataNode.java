@@ -152,8 +152,10 @@ import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.StartupOption;
 import org.apache.hadoop.hdfs.server.common.Storage;
 import org.apache.hadoop.hdfs.server.common.StorageInfo;
 import org.apache.hadoop.hdfs.server.datanode.SecureDataNodeStarter.SecureResources;
+import org.apache.hadoop.hdfs.server.datanode.fsdataset.DatasetSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
+import org.apache.hadoop.hdfs.server.datanode.fsdataset.VolumeSpi;
 import org.apache.hadoop.hdfs.server.datanode.metrics.DataNodeMetrics;
 import org.apache.hadoop.hdfs.server.datanode.web.DatanodeHttpServer;
 import org.apache.hadoop.hdfs.server.protocol.BlockRecoveryCommand.RecoveringBlock;
@@ -284,20 +286,18 @@ public class DataNode extends ReconfigurableBase
   private boolean shutdownInProgress = false;
   private BlockPoolManager blockPoolManager;
 
-  private final FsDatasetSpi.Factory<? extends FsDatasetSpi<?>> datasetFactory;
+  private final DatasetSpi.Factory datasetFactory;
 
   // This is an onto (many-one) mapping. Multiple block pool IDs may share
   // the same dataset.
   private volatile Map<String,
-      FsDatasetSpi<? extends FsVolumeSpi>> datasetsMap =
+      DatasetSpi<? extends VolumeSpi>> datasetsMap =
       new ConcurrentHashMap<>();
 
-  // Hash set of datasets, used to avoid having to deduplicate the values of datasetsMap
-  // every time we need to iterate over all datasets.
-  private volatile Set<FsDatasetSpi<? extends FsVolumeSpi>> datasets =
-      Collections.newSetFromMap(
-          new ConcurrentHashMap<FsDatasetSpi<? extends FsVolumeSpi>,
-                                Boolean>());
+  // Hash set of datasets, used to avoid having to deduplicate the
+  // values of datasetsMap every time we need to iterate over all datasets.
+  private volatile Map<NodeType, DatasetSpi<? extends VolumeSpi>> datasets =
+          new ConcurrentHashMap<>();
 
   private String clusterId = null;
 
@@ -340,7 +340,7 @@ public class DataNode extends ReconfigurableBase
   private boolean hasAnyBlockPoolRegistered = false;
   
   private final BlockScanner blockScanner;
-  private Map<FsDatasetSpi<?>, DirectoryScanner> directoryScannersMap =
+  private Map<DatasetSpi<?>, DirectoryScanner> directoryScannersMap =
       new ConcurrentHashMap<>();
   
   /** Activated plug-ins. */
@@ -618,7 +618,7 @@ public class DataNode extends ReconfigurableBase
             @Override
             public IOException call() {
               try {
-                for (FsDatasetSpi<?> dataset : datasets) {
+                for (DatasetSpi<?> dataset : datasets.values()) {
                   dataset.addVolume(location, nsInfos);
                 }
               } catch (IOException e) {
@@ -723,7 +723,7 @@ public class DataNode extends ReconfigurableBase
 
     IOException ioe = null;
     // Remove volumes and block infos from FsDataset.
-    for (final FsDatasetSpi<?> dataset : datasets) {
+    for (final DatasetSpi<?> dataset : datasets.values()) {
       dataset.removeVolumes(absoluteVolumePaths, clearFailure);
     }
 
@@ -896,7 +896,7 @@ public class DataNode extends ReconfigurableBase
    * See {@link DirectoryScanner}
    */
   private synchronized void initDirectoryScanners(Configuration conf) {
-    for (FsDatasetSpi<?> dataset : datasets) {
+    for (DatasetSpi<?> dataset : datasets.values()) {
       if (directoryScannersMap.get(dataset) != null) {
         continue;
       }
@@ -1029,7 +1029,7 @@ public class DataNode extends ReconfigurableBase
    */
   public void reportBadBlocks(ExtendedBlock block) throws IOException{
     BPOfferService bpos = getBPOSForBlock(block);
-    FsVolumeSpi volume = getFSDataset(block.getBlockPoolId()).getVolume(block);
+    VolumeSpi volume = getDataset(block.getBlockPoolId()).getVolume(block);
     bpos.reportBadBlocks(
         block, volume.getStorageID(), volume.getStorageType());
   }
@@ -1344,7 +1344,7 @@ public class DataNode extends ReconfigurableBase
 
       blockScanner.disableBlockPoolId(bpId);
 
-      FsDatasetSpi<?> dataset = getFSDataset(bpId);
+      DatasetSpi<?> dataset = getDataset(bpId);
       if (dataset != null) {
         dataset.shutdownBlockPool(bpId);
       }
@@ -1367,7 +1367,7 @@ public class DataNode extends ReconfigurableBase
    * @param bpos Block pool offer service
    * @throws IOException if the NN is inconsistent with the local storage.
    */
-  FsDatasetSpi<?> initBlockPool(BPOfferService bpos) throws IOException {
+  DatasetSpi<?> initBlockPool(BPOfferService bpos) throws IOException {
     NamespaceInfo nsInfo = bpos.getNamespaceInfo();
     if (nsInfo == null) {
       throw new IOException("NamespaceInfo not found: Block pool " + bpos
@@ -1381,14 +1381,15 @@ public class DataNode extends ReconfigurableBase
     
     // In the case that this is the first block pool to connect, initialize
     // the dataset, block scanners, etc.
-    FsDatasetSpi<?> dataset = initStorage(bpos.getBlockPoolId(), nsInfo);
+    DatasetSpi<?> dataset = initStorage(bpos.getBlockPoolId(), nsInfo);
 
     // Exclude failed disks before initializing the block pools to avoid startup
     // failures.
-    checkDiskError(getFSDataset(nsInfo.getBlockPoolID()));
+    checkDiskError(getDataset(nsInfo.getBlockPoolID()));
 
     initDirectoryScanners(conf);
-    dataset.addBlockPool(nsInfo.getBlockPoolID(), conf);
+    getDataset(nsInfo.getBlockPoolID()).addBlockPool(
+        nsInfo.getBlockPoolID(), conf);
     blockScanner.enableBlockPoolId(bpos.getBlockPoolId());
     return dataset;
   }
@@ -1405,7 +1406,7 @@ public class DataNode extends ReconfigurableBase
    * Initializes the {@link #data}. The initialization is done only once, when
    * handshake with the the first namenode is completed.
    */
-  private FsDatasetSpi<?> initStorage(
+  private DatasetSpi<?> initStorage(
       final String blockPoolId, final NamespaceInfo nsInfo) throws IOException {
     if (!datasetFactory.isSimulated()) {
       final StartupOption startOpt = getStartupOption(conf);
@@ -1562,14 +1563,18 @@ public class DataNode extends ReconfigurableBase
     return maxNumberOfBlocksToLog;
   }
 
+  /**
+   * Only valid for blocks stored by FsDatasetSpi instances.
+   */
   @Override
   public BlockLocalPathInfo getBlockLocalPathInfo(ExtendedBlock block,
       Token<BlockTokenIdentifier> token) throws IOException {
     checkBlockLocalPathAccess();
     checkBlockToken(block, token, BlockTokenIdentifier.AccessMode.READ);
-    FsDatasetSpi<?> dataset = getFSDataset(block.getBlockPoolId());
+    DatasetSpi<?> dataset = getDataset(block.getBlockPoolId());
     Preconditions.checkNotNull(dataset, "Storage not yet initialized");
-    BlockLocalPathInfo info = dataset.getBlockLocalPathInfo(block);
+    BlockLocalPathInfo info =
+        ((FsDatasetSpi<?>) dataset).getBlockLocalPathInfo(block);
     if (LOG.isDebugEnabled()) {
       if (info != null) {
         if (LOG.isTraceEnabled()) {
@@ -1604,6 +1609,9 @@ public class DataNode extends ReconfigurableBase
     }
   }
 
+  /**
+   * Only valid for blocks stored by FsDatasetSpi instances.
+   */
   FileInputStream[] requestShortCircuitFdsForRead(final ExtendedBlock blk,
       final Token<BlockTokenIdentifier> token, int maxVersion) 
           throws ShortCircuitFdsUnsupportedException,
@@ -1624,7 +1632,8 @@ public class DataNode extends ReconfigurableBase
     FileInputStream fis[] = new FileInputStream[2];
     
     try {
-      final FsDatasetSpi<?> dataset = getFSDataset(blk.getBlockPoolId());
+      final FsDatasetSpi<?> dataset =
+          (FsDatasetSpi<?>) getDataset(blk.getBlockPoolId());
       Preconditions.checkNotNull(dataset, "Storage not yet initialized");
       fis[0] = (FileInputStream) dataset.getBlockInputStream(blk, 0);
       fis[1] = DatanodeUtil.getMetaDataInputStream(blk, dataset);
@@ -1636,6 +1645,9 @@ public class DataNode extends ReconfigurableBase
     return fis;
   }
 
+  /**
+   * Only valid for blocks stored by FsDatasetSpi instances.
+   */
   @Override
   public HdfsBlocksMetadata getHdfsBlocksMetadata(
       String bpId, long[] blockIds,
@@ -1656,7 +1668,7 @@ public class DataNode extends ReconfigurableBase
 
     DataNodeFaultInjector.get().getHdfsBlocksMetadata();
 
-    final FsDatasetSpi<?> dataset = getFSDataset(bpId);
+    final FsDatasetSpi<?> dataset = (FsDatasetSpi<?>) getDataset(bpId);
     Preconditions.checkNotNull(dataset, "Storage not yet initialized");
     return dataset.getHdfsBlocksMetadata(bpId, blockIds);
   }
@@ -1813,7 +1825,7 @@ public class DataNode extends ReconfigurableBase
         LOG.warn("Exception when unlocking storage: " + ie, ie);
       }
     }
-    for (FsDatasetSpi<?> dataset : datasets) {
+    for (DatasetSpi<?> dataset : datasets.values()) {
       dataset.shutdown();
     }
     if (metrics != null) {
@@ -1851,7 +1863,7 @@ public class DataNode extends ReconfigurableBase
     }
   }
   
-  private void handleDiskError(final FsDatasetSpi<?> dataset,
+  private void handleDiskError(final DatasetSpi<?> dataset,
                                final String errMsgr) {
     final boolean hasEnoughResources = dataset.hasEnoughResource();
     LOG.warn("DataNode.handleDiskError: Keep Running: " + hasEnoughResources);
@@ -1912,12 +1924,15 @@ public class DataNode extends ReconfigurableBase
 
   private void reportBadBlock(final BPOfferService bpos,
       final ExtendedBlock block, final String msg) {
-    FsVolumeSpi volume = getFSDataset(block.getBlockPoolId()).getVolume(block);
+    VolumeSpi volume = getDataset(block.getBlockPoolId()).getVolume(block);
     bpos.reportBadBlocks(
         block, volume.getStorageID(), volume.getStorageType());
     LOG.warn(msg);
   }
 
+  /**
+   * Only valid for blocks stored by FsDatasetSpi instances.
+   */
   private void transferBlock(ExtendedBlock block, DatanodeInfo[] xferTargets,
       StorageType[] xferTargetStorageTypes) throws IOException {
     BPOfferService bpos = getBPOSForBlock(block);
@@ -1927,7 +1942,9 @@ public class DataNode extends ReconfigurableBase
     boolean replicaStateNotFinalized = false;
     boolean blockFileNotExist = false;
     boolean lengthTooShort = false;
-    final FsDatasetSpi<?> dataset = getFSDataset(block.getBlockPoolId());
+
+    final FsDatasetSpi<?> dataset =
+        (FsDatasetSpi<?>) getDataset(block.getBlockPoolId());
     Preconditions.checkNotNull(dataset, "Storage not yet initialized");
 
     try {
@@ -1964,10 +1981,8 @@ public class DataNode extends ReconfigurableBase
       // Shorter on-disk len indicates corruption so report NN
       // the corrupt block
       reportBadBlock(bpos, block, "Can't replicate block " + block
-          + " because on-disk length "
-          + getFSDataset(block.getBlockPoolId()).getLength(block)
-          + " is shorter than NameNode recorded length "
-          + block.getNumBytes());
+          + " because on-disk length " + dataset.getLength(block)
+          + " is shorter than NameNode recorded length " + block.getNumBytes());
       return;
     }
     
@@ -2174,7 +2189,7 @@ public class DataNode extends ReconfigurableBase
             DFSUtil.getSmallBufferSize(conf)));
         in = new DataInputStream(unbufIn);
         blockSender = new BlockSender(b, 0, b.getNumBytes(), 
-            false, false, true, DataNode.this, getFSDataset(b.getBlockPoolId()),
+            false, false, true, DataNode.this, data,
             null, cachingStrategy);
         DatanodeInfo srcNode = new DatanodeInfo(bpReg);
 
@@ -2532,17 +2547,22 @@ public class DataNode extends ReconfigurableBase
    * @return
    * @throws IOException
    */
-  private FsDatasetSpi<?> allocateFsDataset(
+  private synchronized DatasetSpi<?> allocateFsDataset(
       final String bpid, final NodeType serviceType) throws IOException {
-    FsDatasetSpi<?> dataset =
-        datasetFactory.newInstance(this, storage, conf, serviceType);
-    datasets.add(dataset);
+
+    DatasetSpi<?> dataset = datasets.get(serviceType);
+    if (dataset != null) {
+      datasetsMap.put(bpid, dataset);
+      return dataset;
+    }
+
+    dataset = datasetFactory.newInstance(this, storage, conf, serviceType);
+    datasets.put(serviceType, dataset);
     datasetsMap.put(bpid, dataset);
 
     if (serviceType == NodeType.NAME_NODE) {
       // 'data' is retained for existing mock-based HDFS unit tests.
-      Preconditions.checkState(data == null || data == dataset);
-      data = dataset;
+      data = (FsDatasetSpi<? extends FsVolumeSpi>) dataset;
     }
 
     return dataset;
@@ -2555,13 +2575,8 @@ public class DataNode extends ReconfigurableBase
    * @return the fsdataset that stores the blocks
    */
   @VisibleForTesting
-  public FsDatasetSpi<?> getFSDataset(final String bpid) {
+  public DatasetSpi<?> getDataset(final String bpid) {
     return datasetsMap.get(bpid);
-  }
-
-  @VisibleForTesting
-  public Set<FsDatasetSpi<?>> getFSDatasets() {
-    return datasets;
   }
 
   /**
@@ -2570,7 +2585,7 @@ public class DataNode extends ReconfigurableBase
    *
    * @return the fsdataset that stores the blocks
    */
-  @VisibleForTesting
+  @Deprecated
   public FsDatasetSpi<?> getFSDataset() {
     Preconditions.checkState(datasets.size() <= 1,
         "Did not expect more than one Dataset here.");
@@ -2578,7 +2593,7 @@ public class DataNode extends ReconfigurableBase
     if (datasets.size() == 0) {
       return null;
     }
-    return (FsDatasetSpi<?>) datasets.iterator().next();
+    return (FsDatasetSpi<?>) datasets.values().iterator().next();
   }
 
   @VisibleForTesting
@@ -2593,7 +2608,7 @@ public class DataNode extends ReconfigurableBase
    *
    * @return
    */
-  @VisibleForTesting
+  @Deprecated
   DirectoryScanner getDirectoryScanner() {
     return directoryScannersMap.get(getFSDataset());
   }
@@ -2651,12 +2666,16 @@ public class DataNode extends ReconfigurableBase
     return d;
   }
 
-  // InterDataNodeProtocol implementation
-  @Override // InterDatanodeProtocol
+  /**
+   * InterDatanodeProtocol implementation.
+   *
+   * Only valid for blocks stored by FsDatasetSpi instances.
+   */
+  @Override
   public ReplicaRecoveryInfo initReplicaRecovery(RecoveringBlock rBlock)
   throws IOException {
     final FsDatasetSpi<?> dataset =
-        getFSDataset(rBlock.getBlock().getBlockPoolId());
+        (FsDatasetSpi<?>) getDataset(rBlock.getBlock().getBlockPoolId());
     if (dataset != null) {
       return dataset.initReplicaRecovery(rBlock);
     }
@@ -2684,10 +2703,10 @@ public class DataNode extends ReconfigurableBase
   public String updateReplicaUnderRecovery(final ExtendedBlock oldBlock,
       final long recoveryId, final long newBlockId, final long newLength)
       throws IOException {
-    final String storageID =
-        getFSDataset(oldBlock.getBlockPoolId())
-            .updateReplicaUnderRecovery(oldBlock, recoveryId,
-                                        newBlockId, newLength);
+    final FsDatasetSpi<?> dataset =
+        (FsDatasetSpi<?>) getDataset(oldBlock.getBlockPoolId());
+    final String storageID = dataset.updateReplicaUnderRecovery(
+        oldBlock, recoveryId, newBlockId, newLength);
     // Notify the namenode of the updated block info. This is important
     // for HA, since otherwise the standby node may lose track of the
     // block locations until the next block report.
@@ -2924,10 +2943,14 @@ public class DataNode extends ReconfigurableBase
         + ")");
   }
 
+  /**
+   * Only valid for blocks stored by FsDatasetSpi instances.
+   */
   @Override // ClientDataNodeProtocol
   public long getReplicaVisibleLength(final ExtendedBlock block) throws IOException {
     checkReadAccess(block);
-    return getFSDataset(block.getBlockPoolId()).getReplicaVisibleLength(block);
+    return ((FsDatasetSpi<?>) getDataset(block.getBlockPoolId()))
+        .getReplicaVisibleLength(block);
   }
 
   private void checkReadAccess(final ExtendedBlock block) throws IOException {
@@ -2951,6 +2974,7 @@ public class DataNode extends ReconfigurableBase
 
   /**
    * Transfer a replica to the datanode targets.
+   * Only valid for blocks stored by FsDatasetSpi instances.
    * @param b the block to transfer.
    *          The corresponding replica must be an RBW or a Finalized.
    *          Its GS and numBytes will be set to
@@ -2964,7 +2988,8 @@ public class DataNode extends ReconfigurableBase
     final long storedGS;
     final long visible;
     final BlockConstructionStage stage;
-    final FsDatasetSpi<?> dataset = getFSDataset(b.getBlockPoolId());
+    final FsDatasetSpi<?> dataset =
+        (FsDatasetSpi<?>) getDataset(b.getBlockPoolId());
 
     //get replica information
     synchronized(dataset) {
@@ -3090,7 +3115,10 @@ public class DataNode extends ReconfigurableBase
     conf = new Configuration();
     refreshNamenodes(conf);
   }
-  
+
+  /**
+   * Only valid for blocks stored by FsDatasetSpi instances.
+   */
   @Override // ClientDatanodeProtocol
   public void deleteBlockPool(String blockPoolId, boolean force)
       throws IOException {
@@ -3104,8 +3132,9 @@ public class DataNode extends ReconfigurableBase
           "The block pool is still running. First do a refreshNamenodes to " +
           "shutdown the block pool service");
     }
-   
-    getFSDataset(blockPoolId).deleteBlockPool(blockPoolId, force);
+
+    ((FsDatasetSpi<?>) getDataset(blockPoolId))
+        .deleteBlockPool(blockPoolId, force);
   }
 
   @Override // ClientDatanodeProtocol
@@ -3260,7 +3289,7 @@ public class DataNode extends ReconfigurableBase
   /**
    * Check the disk error
    */
-  private void checkDiskError(final FsDatasetSpi<?> dataset) {
+  private void checkDiskError(final DatasetSpi<?> dataset) {
     Set<File> unhealthyDataDirs = dataset.checkDataDir();
     if (unhealthyDataDirs != null && !unhealthyDataDirs.isEmpty()) {
       try {
@@ -3294,7 +3323,7 @@ public class DataNode extends ReconfigurableBase
               }
               if(tempFlag) {
                 try {
-                  for (final FsDatasetSpi<?> dataset : datasets) {
+                  for (final DatasetSpi<?> dataset : datasets.values()) {
                     checkDiskError(dataset);
                   }
                 } catch (Exception e) {

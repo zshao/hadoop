@@ -45,7 +45,9 @@ import org.apache.hadoop.hdfs.protocol.RollingUpgradeStatus;
 import org.apache.hadoop.hdfs.protocol.UnregisteredNodeException;
 import org.apache.hadoop.hdfs.protocolPB.DatanodeProtocolClientSideTranslatorPB;
 import org.apache.hadoop.hdfs.server.common.IncorrectVersionException;
-import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
+import org.apache.hadoop.hdfs.server.datanode.fsdataset.DatasetSpi;
+import org.apache.hadoop.hdfs.server.datanode.fsdataset.VolumeSpi;
+import org.apache.hadoop.hdfs.server.datanode.metrics.FSDatasetMBean;
 import org.apache.hadoop.hdfs.server.namenode.FSNamesystem;
 import org.apache.hadoop.hdfs.server.protocol.BlockReportContext;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeCommand;
@@ -113,7 +115,7 @@ class BPServiceActor implements Runnable {
   private volatile boolean sendImmediateIBR = false;
   private volatile boolean shouldServiceRun = true;
   private final DataNode dn;
-  private FsDatasetSpi<?> dataset = null;
+  private DatasetSpi<? extends VolumeSpi> dataset = null;
   private final DNConf dnConf;
   private long prevBlockReportId;
 
@@ -225,7 +227,7 @@ class BPServiceActor implements Runnable {
     // This also initializes our block pool in the DN if we are
     // the first NN connection for this BP.
     dataset = bpos.verifyAndSetNamespaceInfo(nsInfo);
-    
+
     // Second phase of the handshake with the NN.
     register(nsInfo);
   }
@@ -508,8 +510,7 @@ class BPServiceActor implements Runnable {
   }
 
   DatanodeCommand cacheReport() throws IOException {
-    // If caching is disabled, do not send a cache report
-    if (dataset.getCacheCapacity() == 0) {
+    if (!dataset.isCachingSupported()) {
       return null;
     }
     // send cache report if timer has expired.
@@ -552,10 +553,14 @@ class BPServiceActor implements Runnable {
         dataset.getVolumeFailureSummary();
     int numFailedVolumes = volumeFailureSummary != null ?
         volumeFailureSummary.getFailedStorageLocations().length : 0;
+
+    FSDatasetMBean mbean = (dataset instanceof FSDatasetMBean) ?
+        ((FSDatasetMBean) dataset) : null;
+
     return bpNamenode.sendHeartbeat(bpRegistration,
         reports,
-        dataset.getCacheCapacity(),
-        dataset.getCacheUsed(),
+        mbean != null ? mbean.getCacheCapacity() : 0,
+        mbean != null ? mbean.getCacheUsed() : 0,
         dn.getXmitsInProgress(),
         dn.getXceiverCount(),
         numFailedVolumes,

@@ -10,3 +10,6 @@
     HDFS-8641. OzoneHandler : Add Quota Support. (Anu Engineer via
     Arpit Agarwal)
 
+    HDFS-8457. Ozone: Refactor FsDatasetSpi to pull up HDFS-agnostic
+    functionality into parent interface. (Arpit Agarwal)
+

@@ -42,7 +42,7 @@ public class TestDataNodeInitStorage {
   public static final Log LOG = LogFactory.getLog(TestDataNodeInitStorage.class);
 
   static private class SimulatedFsDatasetVerifier extends SimulatedFSDataset {
-    static class Factory extends FsDatasetSpi.Factory<SimulatedFSDataset> {
+    static class Factory extends FsDatasetSpi.Factory {
       @Override
       public SimulatedFsDatasetVerifier newInstance(
           DataNode datanode, DataStorage storage,

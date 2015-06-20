@@ -18,38 +18,30 @@
 package org.apache.hadoop.hdfs.server.datanode.fsdataset.impl;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.NodeType;
 import org.apache.hadoop.hdfs.server.datanode.DataNode;
 import org.apache.hadoop.hdfs.server.datanode.DataStorage;
-import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
+import org.apache.hadoop.hdfs.server.datanode.fsdataset.DatasetSpi;
+import org.apache.hadoop.hdfs.server.datanode.fsdataset.VolumeSpi;
 
 /**
  * A factory for creating {@link FsDatasetImpl} objects.
  */
-public class FsDatasetFactory extends FsDatasetSpi.Factory<FsDatasetImpl> {
+public class FsDatasetFactory extends DatasetSpi.Factory {
 
-  private final Map<NodeType, FsDatasetImpl> datasetMap = new HashMap<>();
 
   @Override
-  public synchronized FsDatasetImpl newInstance(DataNode datanode,
-      DataStorage storage, Configuration conf,
+  public synchronized DatasetSpi<? extends VolumeSpi> newInstance(
+      DataNode datanode, DataStorage storage, Configuration conf,
       NodeType serviceType) throws IOException {
-    FsDatasetImpl dataset = datasetMap.get(serviceType);
-    if (dataset != null) {
-      return dataset;
-    }
     switch (serviceType) {
     case NAME_NODE:
-      dataset = new FsDatasetImpl(datanode, storage, conf);
-      break;
+      return new FsDatasetImpl(datanode, storage, conf);
     default:
-      throw new IllegalArgumentException("Unsupported node type " + serviceType);
+      throw new IllegalArgumentException(
+          "Unsupported node type " + serviceType);
     }
-    datasetMap.put(serviceType, dataset);
-    return dataset;
   }
 }

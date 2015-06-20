@@ -71,7 +71,7 @@ public class TestWriteBlockGetsBlockLengthHint {
   }
 
   static class FsDatasetChecker extends SimulatedFSDataset {
-    static class Factory extends FsDatasetSpi.Factory<SimulatedFSDataset> {
+    static class Factory extends FsDatasetSpi.Factory {
       @Override
       public SimulatedFSDataset newInstance(DataNode datanode,
           DataStorage storage, Configuration conf,

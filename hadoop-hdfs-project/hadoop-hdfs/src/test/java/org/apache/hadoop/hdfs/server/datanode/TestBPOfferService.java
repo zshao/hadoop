@@ -121,7 +121,7 @@ public class TestBPOfferService {
 
     // Wire the dataset to the DN.
     Mockito.doReturn(mockFSDataset).when(mockDn).initBlockPool(Mockito.any(BPOfferService.class));
-    Mockito.doReturn(mockFSDataset).when(mockDn).getFSDataset(anyString());
+    Mockito.doReturn(mockFSDataset).when(mockDn).getDataset(anyString());
   }
 
   /**
@@ -330,7 +330,7 @@ public class TestBPOfferService {
     Mockito.doReturn(DataNodeMetrics.create(conf, "fake dn")).
       when(mockDn).getMetrics();
     final AtomicInteger count = new AtomicInteger();
-    Mockito.doReturn(mockFSDataset).when(mockDn).getFSDataset(anyString());
+    Mockito.doReturn(mockFSDataset).when(mockDn).getDataset(anyString());
     Mockito.doAnswer(new Answer<FsDatasetSpi<?>>() {
       @Override
       public FsDatasetSpi<?> answer(InvocationOnMock invocation) throws Throwable {
@@ -338,7 +338,7 @@ public class TestBPOfferService {
           throw new IOException("faked initBlockPool exception");
         }
         // The initBlockPool is called again. Now mock init is done.
-        Mockito.doReturn(mockFSDataset).when(mockDn).getFSDataset(anyString());
+        Mockito.doReturn(mockFSDataset).when(mockDn).getDataset(anyString());
         return mockFSDataset;
       }
     }).when(mockDn).initBlockPool(Mockito.any(BPOfferService.class));

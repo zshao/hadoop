@@ -2000,6 +2000,11 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
         blockFileName, length, genstamp, volumeExecutor);
   }
 
+  @Override
+  public boolean isCachingSupported() {
+    return true;
+  }
+
   @Override // FsDatasetSpi
   public void cache(String bpid, long[] blockIds) {
     for (int i=0; i < blockIds.length; i++) {

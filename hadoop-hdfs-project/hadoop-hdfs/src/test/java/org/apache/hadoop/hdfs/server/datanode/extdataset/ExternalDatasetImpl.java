@@ -229,6 +229,11 @@ public class ExternalDatasetImpl implements FsDatasetSpi<ExternalVolumeImpl> {
   }
 
   @Override
+  public boolean isCachingSupported() {
+    return false;
+  }
+
+  @Override
   public void cache(String bpid, long[] blockIds) {
   }
 

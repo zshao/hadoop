@@ -314,8 +314,8 @@ class DataXceiver extends Receiver implements Runnable {
         }
         if (slotId != null) {
           final String bpid = blk.getBlockPoolId();
-          boolean isCached = datanode.getFSDataset(bpid).
-              isCached(bpid, blk.getBlockId());
+          FsDatasetSpi<?> dataset = (FsDatasetSpi<?>) datanode.getDataset(bpid);
+          boolean isCached = dataset.isCached(bpid, blk.getBlockId());
           datanode.shortCircuitRegistry.registerSlot(
               ExtendedBlockId.fromExtendedBlock(blk), slotId, isCached);
           registeredSlotId = slotId;
@@ -527,7 +527,7 @@ class DataXceiver extends Receiver implements Runnable {
         Op.READ_BLOCK, BlockTokenIdentifier.AccessMode.READ);
 
     final FsDatasetSpi<?> dataset =
-        datanode.getFSDataset(block.getBlockPoolId());
+        (FsDatasetSpi<?>) datanode.getDataset(block.getBlockPoolId());
     if (dataset == null) {
       throw new IOException(
           "Unknown or unitialized blockpool " + block.getBlockPoolId());
@@ -640,7 +640,7 @@ class DataXceiver extends Receiver implements Runnable {
         || stage == BlockConstructionStage.TRANSFER_FINALIZED;
     long size = 0;
     final FsDatasetSpi<?> dataset =
-        datanode.getFSDataset(block.getBlockPoolId());
+        (FsDatasetSpi<?>) datanode.getDataset(block.getBlockPoolId());
     if (dataset == null) {
       throw new IOException(
           "Unknown or unitialized blockpool " + block.getBlockPoolId());
@@ -907,7 +907,7 @@ class DataXceiver extends Receiver implements Runnable {
     final byte[] buffer = new byte[4*1024];
     MessageDigest digester = MD5Hash.getDigester();
     final FsDatasetSpi<?> dataset =
-        datanode.getFSDataset(block.getBlockPoolId());
+        (FsDatasetSpi<?>) datanode.getDataset(block.getBlockPoolId());
     if (dataset == null) {
       throw new IOException(
           "Unknown or unitialized blockpool " + block.getBlockPoolId());
@@ -951,7 +951,7 @@ class DataXceiver extends Receiver implements Runnable {
         Op.BLOCK_CHECKSUM, BlockTokenIdentifier.AccessMode.READ);
     // client side now can specify a range of the block for checksum
     final FsDatasetSpi<?> dataset =
-        datanode.getFSDataset(block.getBlockPoolId());
+        (FsDatasetSpi<?>) datanode.getDataset(block.getBlockPoolId());
     if (dataset == null) {
       throw new IOException(
           "Unknown or unitialized blockpool " + block.getBlockPoolId());
@@ -1015,7 +1015,7 @@ class DataXceiver extends Receiver implements Runnable {
   public void copyBlock(final ExtendedBlock block,
       final Token<BlockTokenIdentifier> blockToken) throws IOException {
     final FsDatasetSpi<?> dataset =
-        datanode.getFSDataset(block.getBlockPoolId());
+        (FsDatasetSpi<?>) datanode.getDataset(block.getBlockPoolId());
     if (dataset == null) {
       throw new IOException(
           "Unknown or unitialized blockpool " + block.getBlockPoolId());
@@ -1109,7 +1109,7 @@ class DataXceiver extends Receiver implements Runnable {
       final String delHint,
       final DatanodeInfo proxySource) throws IOException {
     final FsDatasetSpi<?> dataset =
-        datanode.getFSDataset(block.getBlockPoolId());
+        (FsDatasetSpi<?>) datanode.getDataset(block.getBlockPoolId());
     if (dataset == null) {
       throw new IOException(
           "Unknown or unitialized blockpool " + block.getBlockPoolId());
