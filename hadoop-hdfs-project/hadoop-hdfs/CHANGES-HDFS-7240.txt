@@ -13,3 +13,4 @@
     HDFS-8457. Ozone: Refactor FsDatasetSpi to pull up HDFS-agnostic
     functionality into parent interface. (Arpit Agarwal)
 
+    HDFS-8448. Create REST Interface for Volumes. (Anu Engineer via cnauroth)
