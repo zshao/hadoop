@@ -132,7 +132,7 @@ public class TimelineCollectorManager extends AbstractService {
       postRemove(appId, collector);
       // stop the service to do clean up
       collector.stop();
-      LOG.info("the collector service for " + appId + " was removed");
+      LOG.info("The collector service for " + appId + " was removed");
     }
     return collector != null;
   }
