@@ -312,6 +312,9 @@ Release 2.8.0 - UNRELEASED
     YARN-3148. Allow CORS related headers to passthrough in WebAppProxyServlet.
     (Varun Saxena via devaraj)
 
+    YARN-3834. Scrub debug logging of tokens during resource localization.
+    (Chris Nauroth via xgong)
+
   OPTIMIZATIONS
 
     YARN-3339. TestDockerContainerExecutor should pull a single image and not
@@ -542,6 +545,9 @@ Release 2.8.0 - UNRELEASED
     YARN-3802. Two RMNodes for the same NodeId are used in RM sometimes
     after NM is reconnected. (zhihai xu via xgong)
 
+    YARN-3835. hadoop-yarn-server-resourcemanager test package bundles
+    core-site.xml, yarn-site.xml (vamsee via rkanter)
+
 Release 2.7.1 - UNRELEASED
 
   INCOMPATIBLE CHANGES
@@ -689,6 +695,18 @@ Release 2.7.1 - UNRELEASED
 
     YARN-3804. Both RM are on standBy state when kerberos user not in yarn.admin.acl
     (Varun Saxena via xgong)
+
+    YARN-3842. NMProxy should retry on NMNotYetReadyException. 
+    (Robert Kanter via kasha)
+
+    YARN-3809. Failed to launch new attempts because
+    ApplicationMasterLauncher's threads all hang (Jun Gong via jlowe)
+
+    YARN-3832. Resource Localization fails on a cluster due to existing cache
+    directories (Brahma Reddy Battula via jlowe)
+
+    YARN-3790. usedResource from rootQueue metrics may get stale data for FS
+    scheduler after recovering the container (Zhihai Xu via rohithsharmaks)
 
 Release 2.7.0 - 2015-04-20
 

@@ -200,6 +200,9 @@ Trunk (Unreleased)
     MAPREDUCE-6396. TestPipeApplication fails by NullPointerException.
     (Brahma Reddy Battula via aajisaka)
 
+    MAPREDUCE-6406. Update FileOutputCommitter.FILEOUTPUTCOMMITTER_ALGORITHM_VERSION_DEFAULT
+    to match mapred-default.xml. (Ray Chiang via devaraj)
+
   BREAKDOWN OF MAPREDUCE-2841 (NATIVE TASK) SUBTASKS
 
     MAPREDUCE-5985. native-task: Fix build on macosx. Contributed by
@@ -358,6 +361,9 @@ Release 2.8.0 - UNRELEASED
     MAPREDUCE-6305. AM/Task log page should be able to link back to the job.
     (Siqi Li via gera)
 
+    MAPREDUCE-6408. Queue name and user name should be printed on the job page.
+    (Siqi Li via gera)
+
   OPTIMIZATIONS
 
   BUG FIXES
@@ -492,6 +498,17 @@ Release 2.8.0 - UNRELEASED
     MAPREDUCE-6405. NullPointerException in App Attempts page.
     (Siqi Li and Gera Shegalov via devaraj)
 
+    MAPREDUCE-6403. Fix typo in the usage of NNBench.
+    (Jagadesh Kiran N via aajisaka)
+
+    MAPREDUCE-5948. org.apache.hadoop.mapred.LineRecordReader does not handle
+    multibyte record delimiters well (Vinayakumar B, Rushabh Shah, and Akira
+    AJISAKA via jlowe)
+
+    MAPREDUCE-6400. Multiple shuffle transfer fails because input is closed
+    too early (Brahma Reddy Battula, Akira AJISAKA, and Gera Shegalov via
+    jlowe)
+
 Release 2.7.1 - UNRELEASED
 
   INCOMPATIBLE CHANGES
@@ -534,6 +551,9 @@ Release 2.7.1 - UNRELEASED
 
     MAPREDUCE-6387. Serialize the recently added Task#encryptedSpillKey field at 
     the end. (Arun Suresh via kasha)
+
+    MAPREDUCE-6410. Fixed MapReduce JobHistory server to use the right (login)
+    UGI to refresh log and cleaner settings. (Varun Saxena via vinodkv)
 
 Release 2.7.0 - 2015-04-20
 

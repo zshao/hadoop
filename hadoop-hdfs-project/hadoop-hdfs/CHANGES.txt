@@ -38,8 +38,7 @@ Trunk (Unreleased)
 
     HDFS-3125. Add JournalService to enable Journal Daemon. (suresh)
 
-    HDFS-7240. Ozone
-      HDFS-8210. Ozone: Implement storage container manager. (jitendra)
+    HDFS-6440. Support more than 2 NameNodes. (Jesse Yates via atm)
 
   IMPROVEMENTS
 
@@ -272,9 +271,6 @@ Trunk (Unreleased)
 
     HDFS-3934. duplicative dfs_hosts entries handled wrong. (Colin Patrick
     McCabe)
-
-    HDFS-4366. Block Replication Policy Implementation May Skip Higher-Priority
-    Blocks for Lower-Priority Blocks (Derek Dagit via kihwal)
 
     HDFS-5719. FSImage#doRollback() should close prevState before return
     (Ted Yu via brandonli)
@@ -664,6 +660,12 @@ Release 2.8.0 - UNRELEASED
     HDFS-8192. Eviction should key off used locked memory instead of
     ram disk free space. (Arpit Agarwal)
 
+    HDFS-6564. Use slf4j instead of common-logging in hdfs-client.
+    (Rakesh R via wheat9)
+
+    HDFS-8639. Add Option for NameNode HTTP port in MiniDFSClusterManager.
+    (Kai Sasaki via jing9)
+
   OPTIMIZATIONS
 
     HDFS-8026. Trace FSOutputSummer#writeChecksumChunks rather than
@@ -941,6 +943,12 @@ Release 2.8.0 - UNRELEASED
     HDFS-8337. Accessing httpfs via webhdfs doesn't work from a jar with
     kerberos. (Yongjun Zhang)
 
+    HDFS-4366. Block Replication Policy Implementation May Skip Higher-Priority
+    Blocks for Lower-Priority Blocks (Derek Dagit via kihwal)
+
+    HDFS-8542. WebHDFS getHomeDirectory behavior does not match specification.
+    (Kanaka Kumar Avvaru via jghoman)
+
 Release 2.7.1 - UNRELEASED
 
   INCOMPATIBLE CHANGES
@@ -974,6 +982,9 @@ Release 2.7.1 - UNRELEASED
     HDFS-7164. Feature documentation for HDFS-6581. (Arpit Agarwal)
 
   OPTIMIZATIONS
+    HDFS-8480. Fix performance and timeout issues in HDFS-7929 by using
+    hard-links to preserve old edit logs, instead of copying them. (Zhe Zhang
+    via Colin P. McCabe)
 
   BUG FIXES
 
