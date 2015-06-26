@@ -21,6 +21,7 @@ package org.apache.hadoop.storagecontainer;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.server.blockmanagement.BlockInfo;
 import org.apache.hadoop.hdfs.server.blockmanagement.BlockInfoUnderConstruction;
+import org.apache.hadoop.hdfs.server.namenode.CacheManager;
 import org.apache.hadoop.hdfs.server.namenode.NameNode;
 import org.apache.hadoop.hdfs.server.namenode.Namesystem;
 import org.apache.hadoop.ipc.StandbyException;
@@ -87,6 +88,12 @@ public class StorageContainerNameService implements Namesystem {
   public boolean isInSnapshot(BlockInfoUnderConstruction blockUC) {
     // Snapshots not supported
     return false;
+  }
+
+  @Override
+  public CacheManager getCacheManager() {
+    // Cache Management is not supported
+    return null;
   }
 
   @Override
