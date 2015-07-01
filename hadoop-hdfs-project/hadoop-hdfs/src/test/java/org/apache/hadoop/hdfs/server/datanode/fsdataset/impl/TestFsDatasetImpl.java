@@ -180,7 +180,7 @@ public class TestFsDatasetImpl {
           anyListOf(NamespaceInfo.class)))
           .thenReturn(builder);
 
-      dataset.addVolume(loc, nsInfos);
+      dataset.addVolume(loc, builder.getStorageDirectory(), nsInfos);
     }
 
     assertEquals(totalVolumes, getNumVolumes());
@@ -259,7 +259,7 @@ public class TestFsDatasetImpl {
         anyListOf(NamespaceInfo.class)))
         .thenReturn(builder);
 
-    dataset.addVolume(loc, nsInfos);
+    dataset.addVolume(loc, sd, nsInfos);
     assertEquals(numExistingVolumes + 1, getNumVolumes());
 
     when(storage.getNumStorageDirs()).thenReturn(numExistingVolumes + 1);
@@ -354,7 +354,7 @@ public class TestFsDatasetImpl {
     }
 
     try {
-      spyDataset.addVolume(location, nsInfos);
+      spyDataset.addVolume(location, sd, nsInfos);
       fail("Expect to throw MultipleIOException");
     } catch (MultipleIOException e) {
     }

@@ -26,6 +26,7 @@ import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.protocol.BlockListAsLongs;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants;
+import org.apache.hadoop.hdfs.server.common.Storage;
 import org.apache.hadoop.hdfs.server.datanode.DataNode;
 import org.apache.hadoop.hdfs.server.datanode.DataStorage;
 import org.apache.hadoop.hdfs.server.datanode.StorageLocation;
@@ -88,9 +89,9 @@ public interface DatasetSpi<V extends VolumeSpi> {
 
 
   /**
-   * Add a new volume to the FsDataset.<p/>
+   * Add a new volume to the Dataset.<p/>
    *
-   * If the FSDataset supports block scanning, this function registers
+   * If the Dataset supports block scanning, this function registers
    * the new volume with the block scanner.
    *
    * @param location      The storage location for the new volume.
@@ -98,7 +99,16 @@ public interface DatasetSpi<V extends VolumeSpi> {
    */
   void addVolume(
       final StorageLocation location,
+      final Storage.StorageDirectory sd,
       final List<NamespaceInfo> nsInfos) throws IOException;
+
+  /**
+   * Record a failure to bring up a volume. Primarily for reporting
+   * purposes.
+   *
+   * @param location StorageLocation corresponding to the failed volume.
+   */
+  void recordFailedVolume(final StorageLocation location);
 
   /**
    * Removes a collection of volumes from FsDataset.
@@ -148,7 +158,7 @@ public interface DatasetSpi<V extends VolumeSpi> {
   Set<File> checkDataDir();
 
   /**
-   * Shutdown the FSDataset
+   * Shutdown the Dataset
    */
   void shutdown();
 

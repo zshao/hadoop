@@ -23,3 +23,6 @@
     HDFS-8644. OzoneHandler : Add volume handler. (Anu Engineer via
     Arpit Agarwal)
 
+    HDFS-8661. DataNode should filter the set of NameSpaceInfos passed to
+    Datasets. (Arpit Agarwal)
+

@@ -313,9 +313,14 @@ class DataXceiver extends Receiver implements Runnable {
               "anything but a UNIX domain socket.");
         }
         if (slotId != null) {
-          final String bpid = blk.getBlockPoolId();
-          FsDatasetSpi<?> dataset = (FsDatasetSpi<?>) datanode.getDataset(bpid);
-          boolean isCached = dataset.isCached(bpid, blk.getBlockId());
+          final FsDatasetSpi<?> dataset =
+              (FsDatasetSpi<?>) datanode.getDataset(blk.getBlockPoolId());
+          if (dataset == null) {
+            throw new IOException(
+                "Unknown or uninitialized blockpool " + blk.getBlockPoolId());
+          }
+          boolean isCached = dataset.isCached(
+              blk.getBlockPoolId(), blk.getBlockId());
           datanode.shortCircuitRegistry.registerSlot(
               ExtendedBlockId.fromExtendedBlock(blk), slotId, isCached);
           registeredSlotId = slotId;

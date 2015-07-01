@@ -307,7 +307,7 @@ public class DataStorage extends Storage {
    * Note that if there is IOException, the state of DataStorage is not modified.
    */
   public VolumeBuilder prepareVolume(DataNode datanode, File volume,
-      List<NamespaceInfo> nsInfos) throws IOException {
+      Collection<NamespaceInfo> nsInfos) throws IOException {
     if (containsStorageDir(volume)) {
       final String errorMessage = "Storage directory is in use";
       LOG.warn(errorMessage + ".");
@@ -315,10 +315,10 @@ public class DataStorage extends Storage {
     }
 
     StorageDirectory sd = loadStorageDirectory(
-        datanode, nsInfos.get(0), volume, StartupOption.HOTSWAP);
+        datanode, nsInfos.iterator().next(), volume, StartupOption.HOTSWAP);
     VolumeBuilder builder =
         new VolumeBuilder(this, sd);
-    for (NamespaceInfo nsInfo : nsInfos) {
+    for (final NamespaceInfo nsInfo : nsInfos) {
       List<File> bpDataDirs = Lists.newArrayList();
       bpDataDirs.add(BlockPoolSliceStorage.getBpRoot(
           nsInfo.getBlockPoolID(), new File(volume, STORAGE_DIR_CURRENT)));

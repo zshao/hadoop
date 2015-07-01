@@ -47,6 +47,7 @@ import javax.management.ObjectName;
 import javax.management.StandardMBean;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Joiner;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
@@ -411,23 +412,19 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
   }
 
   @Override
+  public void recordFailedVolume(final StorageLocation location) {
+    volumes.addVolumeFailureInfo(new VolumeFailureInfo(
+        location.getFile().getAbsolutePath(), Time.now()));
+  }
+
+  @Override
   public void addVolume(final StorageLocation location,
-      final List<NamespaceInfo> nsInfos)
+                        final Storage.StorageDirectory sd,
+                        final List<NamespaceInfo> nsInfos)
       throws IOException {
-    final File dir = location.getFile();
 
-    // Prepare volume in DataStorage
-    final DataStorage.VolumeBuilder builder;
-    try {
-      builder = dataStorage.prepareVolume(datanode, location.getFile(), nsInfos);
-    } catch (IOException e) {
-      volumes.addVolumeFailureInfo(new VolumeFailureInfo(
-          location.getFile().getAbsolutePath(), Time.now()));
-      throw e;
-    }
-
-    final Storage.StorageDirectory sd = builder.getStorageDirectory();
-
+    LOG.info("FsDatasetImpl: Adding volume " + location.getFile() +
+             " with namespaces " + Joiner.on("; ").join(nsInfos));
     StorageType storageType = location.getStorageType();
     final FsVolumeImpl fsVolume =
         createFsVolume(sd.getStorageUuid(), sd.getCurrentDir(), storageType);
@@ -457,7 +454,6 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
     final FsVolumeReference ref = fsVolume.obtainReference();
     setupAsyncLazyPersistThread(fsVolume);
 
-    builder.build();
     synchronized (this) {
       volumeMap.addAll(tempVolumeMap);
       storageMap.put(sd.getStorageUuid(),
@@ -467,7 +463,8 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
       asyncDiskService.addVolume(sd.getCurrentDir());
       volumes.addVolume(ref);
     }
-    LOG.info("Added volume - " + dir + ", StorageType: " + storageType);
+    LOG.info("Added volume - " + location.getFile() +
+                 ", StorageType: " + storageType);
   }
 
   /**

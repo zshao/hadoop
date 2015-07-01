@@ -77,6 +77,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
@@ -150,7 +151,9 @@ import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.NodeType;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.ReplicaState;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.StartupOption;
 import org.apache.hadoop.hdfs.server.common.Storage;
+import org.apache.hadoop.hdfs.server.common.Storage.StorageDirectory;
 import org.apache.hadoop.hdfs.server.common.StorageInfo;
+import org.apache.hadoop.hdfs.server.datanode.DataStorage.VolumeBuilder;
 import org.apache.hadoop.hdfs.server.datanode.SecureDataNodeStarter.SecureResources;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.DatasetSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
@@ -590,6 +593,46 @@ public class DataNode extends ReconfigurableBase
   }
 
   /**
+   * Prepare multiple volumes for addition before notifying the datasets.
+   * Notify each dataset of each failed volume.
+   *
+   * @param locations StorageLocations corresponding to each new volume.
+   * @param nsInfos List of all NameSpaceInfos that the BlockManager knows
+   *                of.
+   * @param errorMessageBuilder StringBuilder to accumulate error messages.
+   * @return List of volumes that was successfully prepared.
+   */
+  private Map<StorageLocation, StorageDirectory> prepareVolumesForAddition(
+      List<StorageLocation> locations,
+      List<NamespaceInfo> nsInfos,
+      StringBuilder errorMessageBuilder) {
+
+    Map<StorageLocation, StorageDirectory> filteredLocations = new HashMap<>();
+    for (final StorageLocation location : locations) {
+      try {
+        // Prepare the volume in DataStorage
+        VolumeBuilder builder =
+            storage.prepareVolume(this, location.getFile(), nsInfos);
+        StorageDirectory sd = builder.getStorageDirectory();
+        builder.build();
+        filteredLocations.put(location, sd);
+      } catch (IOException ioe) {
+        LOG.warn("Failed to add volume " + location);
+
+        errorMessageBuilder.append(
+            String.format("FAILED TO ADD: %s: %s%n",
+                location, ioe.getMessage()));
+
+        for (DatasetSpi<?> dataset : datasets.values()) {
+          dataset.recordFailedVolume(location);
+        }
+      }
+    }
+
+    return filteredLocations;
+  }
+
+  /**
    * Attempts to reload data volumes with new configuration.
    * @param newVolumes a comma separated string that specifies the data volumes.
    * @throws IOException on error. If an IOException is thrown, some new volumes
@@ -602,7 +645,7 @@ public class DataNode extends ReconfigurableBase
     int numOldDataDirs = dataDirs.size();
     ChangedVolumes changedVolumes = parseChangedVolumes(newVolumes);
     StringBuilder errorMessageBuilder = new StringBuilder();
-    List<String> effectiveVolumes = Lists.newArrayList();
+    Set<String> effectiveVolumes = new TreeSet<>();
     for (StorageLocation sl : changedVolumes.unchangedLocations) {
       effectiveVolumes.add(sl.toString());
     }
@@ -617,32 +660,52 @@ public class DataNode extends ReconfigurableBase
             Joiner.on(",").join(changedVolumes.newLocations));
 
         // Add volumes for each Namespace
-        final List<NamespaceInfo> nsInfos = Lists.newArrayList();
-        for (BPOfferService bpos : blockPoolManager.getAllNamenodeThreads()) {
-          nsInfos.add(bpos.getNamespaceInfo());
-        }
         ExecutorService service = Executors.newFixedThreadPool(
             changedVolumes.newLocations.size());
-        List<Future<IOException>> exceptions = Lists.newArrayList();
-        for (final StorageLocation location : changedVolumes.newLocations) {
-          exceptions.add(service.submit(new Callable<IOException>() {
-            @Override
-            public IOException call() {
-              try {
-                for (DatasetSpi<?> dataset : datasets.values()) {
-                  dataset.addVolume(location, nsInfos);
-                }
-              } catch (IOException e) {
-                return e;
-              }
-              return null;
+
+        List<NamespaceInfo> nsInfos = blockPoolManager.getAllNamespaceInfos();
+        Map<StorageLocation, StorageDirectory> filteredLocations =
+            prepareVolumesForAddition(
+                changedVolumes.newLocations, nsInfos, errorMessageBuilder);
+
+        Map<StorageLocation, Future<IOException>> exceptionsMap =
+            new HashMap<>();
+        for (final DatasetSpi<?> dataset : datasets.values()) {
+          // Find the storage services matching the NodeType for this dataset.
+          final List<NamespaceInfo> filteredNsInfos = new ArrayList<>();
+          for (final NamespaceInfo nsInfo : nsInfos) {
+            if (datasets.get(nsInfo.getNodeType()) == dataset) {
+              filteredNsInfos.add(nsInfo);
             }
-          }));
+          }
+
+          // Add each volume to the dataset.
+          for (final Map.Entry<StorageLocation, StorageDirectory> entry :
+              filteredLocations.entrySet()) {
+            exceptionsMap.put(
+                entry.getKey(),
+                service.submit(new Callable<IOException>() {
+                  @Override
+                  public IOException call() {
+                    try {
+                      dataset.addVolume(
+                          entry.getKey(), entry.getValue(), filteredNsInfos);
+                    } catch (IOException e) {
+                      return e;
+                    }
+                    return null;
+                  }
+                }));
+          }
         }
 
-        for (int i = 0; i < changedVolumes.newLocations.size(); i++) {
-          StorageLocation volume = changedVolumes.newLocations.get(i);
-          Future<IOException> ioExceptionFuture = exceptions.get(i);
+        // TODO: Unlock volumes which could not be added to any dataset.
+
+        for (Map.Entry<StorageLocation, Future<IOException>> exceptionEntry :
+            exceptionsMap.entrySet()) {
+          StorageLocation volume = exceptionEntry.getKey();
+          Future<IOException> ioExceptionFuture = exceptionEntry.getValue();
+
           try {
             IOException ioe = ioExceptionFuture.get();
             if (ioe != null) {
