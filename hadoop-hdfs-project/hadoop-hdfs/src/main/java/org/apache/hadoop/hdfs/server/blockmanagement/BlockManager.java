@@ -42,6 +42,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
+import javax.management.ObjectName;
+
 import org.apache.hadoop.HadoopIllegalArgumentException;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.conf.Configuration;
@@ -76,11 +78,16 @@ import org.apache.hadoop.hdfs.server.protocol.DatanodeRegistration;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeStorage;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeStorage.State;
 import org.apache.hadoop.hdfs.util.LightWeightLinkedSet;
+import org.apache.hadoop.metrics2.util.MBeans;
 import org.apache.hadoop.net.Node;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.Daemon;
 import org.apache.hadoop.util.LightWeightGSet;
 import org.apache.hadoop.util.Time;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Sets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -96,7 +103,7 @@ import static org.apache.hadoop.util.ExitUtil.terminate;
  * Keeps information related to the blocks stored in the Hadoop cluster.
  */
 @InterfaceAudience.Private
-public class BlockManager {
+public class BlockManager implements BlockStatsMXBean {
 
   public static final Logger LOG = LoggerFactory.getLogger(BlockManager.class);
   public static final Logger blockLog = NameNode.blockStateChangeLog;
@@ -124,6 +131,7 @@ public class BlockManager {
   private final AtomicLong postponedMisreplicatedBlocksCount = new AtomicLong(0L);
   private final long startupDelayBlockDeletionInMs;
   private final BlockReportLeaseManager blockReportLeaseManager;
+  private ObjectName mxBeanName;
 
   /** Used by metrics */
   public long getPendingReplicationBlocksCount() {
@@ -468,6 +476,7 @@ public class BlockManager {
     pendingReplications.start();
     datanodeManager.activate(conf);
     this.replicationThread.start();
+    mxBeanName = MBeans.register("NameNode", "BlockStats", this);
   }
 
   public void close() {
@@ -3944,6 +3953,8 @@ public class BlockManager {
   public void shutdown() {
     stopReplicationInitializer();
     blocksMap.close();
+    MBeans.unregister(mxBeanName);
+    mxBeanName = null;
   }
   
   public void clear() {
@@ -3953,5 +3964,10 @@ public class BlockManager {
 
   public BlockReportLeaseManager getBlockReportLeaseManager() {
     return blockReportLeaseManager;
+  }
+
+  @Override // BlockStatsMXBean
+  public Map<StorageType, StorageTypeStats> getStorageTypeStats() {
+    return  datanodeManager.getDatanodeStatistics().getStorageTypeStats();
   }
 }

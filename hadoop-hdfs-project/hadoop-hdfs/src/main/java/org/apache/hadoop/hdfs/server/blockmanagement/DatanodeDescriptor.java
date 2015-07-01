@@ -52,7 +52,8 @@ public class DatanodeDescriptor extends DatanodeInfo {
 
   // Stores status of decommissioning.
   // If node is not decommissioning, do not use this object for anything.
-  public final DecommissioningStatus decommissioningStatus = new DecommissioningStatus();
+  public final DecommissioningStatus decommissioningStatus =
+      new DecommissioningStatus();
 
   private long curBlockReportId = 0;
 
@@ -103,7 +104,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
         return null;
       }
 
-      List<E> results = new ArrayList<E>();
+      List<E> results = new ArrayList<>();
       for(; !blockq.isEmpty() && numBlocks > 0; numBlocks--) {
         results.add(blockq.poll());
       }
@@ -123,7 +124,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
   }
 
   private final Map<String, DatanodeStorageInfo> storageMap = 
-      new HashMap<String, DatanodeStorageInfo>();
+      new HashMap<>();
 
   /**
    * A list of CachedBlock objects on this datanode.
@@ -205,12 +206,14 @@ public class DatanodeDescriptor extends DatanodeInfo {
   private long bandwidth;
 
   /** A queue of blocks to be replicated by this datanode */
-  private final BlockQueue<BlockTargetPair> replicateBlocks = new BlockQueue<BlockTargetPair>();
+  private final BlockQueue<BlockTargetPair> replicateBlocks =
+      new BlockQueue<>();
   /** A queue of blocks to be recovered by this datanode */
   private final BlockQueue<BlockInfoUnderConstruction> recoverBlocks =
-                                new BlockQueue<BlockInfoUnderConstruction>();
+      new BlockQueue<>();
   /** A set of blocks to be invalidated by this datanode */
-  private final LightWeightHashSet<Block> invalidateBlocks = new LightWeightHashSet<Block>();
+  private final LightWeightHashSet<Block> invalidateBlocks =
+      new LightWeightHashSet<>();
 
   /* Variables for maintaining number of blocks scheduled to be written to
    * this storage. This count is approximate and might be slightly bigger
@@ -218,9 +221,9 @@ public class DatanodeDescriptor extends DatanodeInfo {
    * while writing the block).
    */
   private EnumCounters<StorageType> currApproxBlocksScheduled
-      = new EnumCounters<StorageType>(StorageType.class);
+      = new EnumCounters<>(StorageType.class);
   private EnumCounters<StorageType> prevApproxBlocksScheduled
-      = new EnumCounters<StorageType>(StorageType.class);
+      = new EnumCounters<>(StorageType.class);
   private long lastBlocksScheduledRollTime = 0;
   private static final int BLOCKS_SCHEDULED_ROLL_INTERVAL = 600*1000; //10min
   private int volumeFailures = 0;
@@ -264,6 +267,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
       return storageMap.get(storageID);
     }
   }
+
   DatanodeStorageInfo[] getStorageInfos() {
     synchronized (storageMap) {
       final Collection<DatanodeStorageInfo> storages = storageMap.values();
@@ -309,7 +313,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
               Long.toHexString(curBlockReportId));
           iter.remove();
           if (zombies == null) {
-            zombies = new LinkedList<DatanodeStorageInfo>();
+            zombies = new LinkedList<>();
           }
           zombies.add(storageInfo);
         }
@@ -338,10 +342,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
    */
   boolean removeBlock(String storageID, BlockInfo b) {
     DatanodeStorageInfo s = getStorageInfo(storageID);
-    if (s != null) {
-      return s.removeBlock(b);
-    }
-    return false;
+    return s != null && s.removeBlock(b);
   }
 
   public void resetBlocks() {
@@ -437,7 +438,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
           + this.volumeFailures + " to " + volFailures);
       synchronized (storageMap) {
         failedStorageInfos =
-            new HashSet<DatanodeStorageInfo>(storageMap.values());
+            new HashSet<>(storageMap.values());
       }
     }
 
@@ -493,7 +494,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
       HashMap<String, DatanodeStorageInfo> excessStorages;
 
       // Init excessStorages with all known storages.
-      excessStorages = new HashMap<String, DatanodeStorageInfo>(storageMap);
+      excessStorages = new HashMap<>(storageMap);
 
       // Remove storages that the DN reported in the heartbeat.
       for (final StorageReport report : reports) {
@@ -530,7 +531,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
     private final List<Iterator<BlockInfo>> iterators;
     
     private BlockIterator(final DatanodeStorageInfo... storages) {
-      List<Iterator<BlockInfo>> iterators = new ArrayList<Iterator<BlockInfo>>();
+      List<Iterator<BlockInfo>> iterators = new ArrayList<>();
       for (DatanodeStorageInfo e : storages) {
         iterators.add(e.getBlockIterator());
       }
