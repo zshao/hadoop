@@ -36,6 +36,7 @@ import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.logging.Log;
@@ -186,9 +187,18 @@ public class ContainerLocalizer {
     }
   }
 
+  int getDownloadThreadCount() {
+    return conf.getInt(
+        YarnConfiguration.NM_PRIVATE_LOCALIZER_FETCH_THREAD_COUNT,
+        YarnConfiguration.DEFAULT_NM_PRIVATE_LOCALIZER_FETCH_THREAD_COUNT);
+  }
+
   ExecutorService createDownloadThreadPool() {
-    return Executors.newSingleThreadExecutor(new ThreadFactoryBuilder()
-      .setNameFormat("ContainerLocalizer Downloader").build());
+    int nThreads = getDownloadThreadCount();
+    ThreadFactory tf = new ThreadFactoryBuilder()
+      .setNameFormat("ContainerLocalizer Downloader #%d")
+      .build();
+    return Executors.newFixedThreadPool(nThreads, tf);
   }
 
   CompletionService<Path> createCompletionService(ExecutorService exec) {
@@ -230,7 +240,10 @@ public class ContainerLocalizer {
   protected void localizeFiles(LocalizationProtocol nodemanager,
       CompletionService<Path> cs, UserGroupInformation ugi)
       throws IOException {
+    int heartbeatCount = 0;
+    int downloadThreadCount = getDownloadThreadCount();
     while (true) {
+      heartbeatCount ++;
       try {
         LocalizerStatus status = createStatus();
         LocalizerHeartbeatResponse response = nodemanager.heartbeat(status);
@@ -257,7 +270,13 @@ public class ContainerLocalizer {
           } catch (YarnException e) { }
           return;
         }
-        cs.poll(1000, TimeUnit.MILLISECONDS);
+        if (heartbeatCount < downloadThreadCount) {
+          // Each heartbeat gives us only 1 resource to download.  Don't wait
+          // for the first 'threadCount' heartbeats to allow parallel download.
+          // Subsequent downloads are also parallel because cs.poll(...)
+          // returns early when any download finishes before the timeout.
+          cs.poll(1000, TimeUnit.MILLISECONDS);
+        }
       } catch (InterruptedException e) {
         return;
       } catch (YarnException e) {

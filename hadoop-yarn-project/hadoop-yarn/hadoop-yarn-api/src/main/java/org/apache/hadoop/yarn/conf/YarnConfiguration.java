@@ -718,6 +718,11 @@ public class YarnConfiguration extends Configuration {
     NM_PREFIX + "localizer.fetch.thread-count";
   public static final int DEFAULT_NM_LOCALIZER_FETCH_THREAD_COUNT = 4;
 
+  /** Number of threads to use for private localization fetching.*/
+  public static final String NM_PRIVATE_LOCALIZER_FETCH_THREAD_COUNT =
+      NM_PREFIX + "localizer.private.fetch.thread-count";
+  public static final int DEFAULT_NM_PRIVATE_LOCALIZER_FETCH_THREAD_COUNT = 4;
+
   /** Where to store container logs.*/
   public static final String NM_LOG_DIRS = NM_PREFIX + "log-dirs";
   public static final String DEFAULT_NM_LOG_DIRS = "/tmp/logs";
