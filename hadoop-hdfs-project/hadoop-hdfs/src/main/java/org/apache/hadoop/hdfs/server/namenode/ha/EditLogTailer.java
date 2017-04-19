@@ -245,7 +245,7 @@ public class EditLogTailer {
       }
       lastLoadedTxnId = image.getLastAppliedTxId();
     } finally {
-      namesystem.writeUnlock();
+      namesystem.writeUnlock("doTailEdits");
     }
   }
 

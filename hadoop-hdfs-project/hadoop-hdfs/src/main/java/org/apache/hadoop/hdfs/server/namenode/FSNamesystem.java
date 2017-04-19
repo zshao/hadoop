@@ -579,7 +579,7 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
           }
         }
       } finally {
-        writeUnlock();
+        writeUnlock("waitForLoadingFSImage");
       }
     }
   }
@@ -5562,7 +5562,7 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
             break;
           }
         } finally {
-          writeUnlock();
+          writeUnlock("SafeModeMonitor");
         }
 
         try {

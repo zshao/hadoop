@@ -1062,7 +1062,7 @@ public class SecondaryNameNode implements Runnable,
       try {
         dstImage.reloadFromImageFile(file, dstNamesystem);
       } finally {
-        dstNamesystem.writeUnlock();
+        dstNamesystem.writeUnlock("doMerge");
       }
       dstNamesystem.imageLoadComplete();
     }

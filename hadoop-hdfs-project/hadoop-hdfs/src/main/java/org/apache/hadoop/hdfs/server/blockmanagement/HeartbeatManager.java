@@ -332,7 +332,7 @@ class HeartbeatManager implements DatanodeStatistics {
             dm.removeDeadDatanode(dead);
           }
         } finally {
-          namesystem.writeUnlock();
+          namesystem.writeUnlock("removeDeadDatanode");
         }
       }
       if (failedStorage != null) {
@@ -346,7 +346,7 @@ class HeartbeatManager implements DatanodeStatistics {
             blockManager.removeBlocksAssociatedTo(failedStorage);
           }
         } finally {
-          namesystem.writeUnlock();
+          namesystem.writeUnlock("removeBlocksAssociatedTo");
         }
       }
     }

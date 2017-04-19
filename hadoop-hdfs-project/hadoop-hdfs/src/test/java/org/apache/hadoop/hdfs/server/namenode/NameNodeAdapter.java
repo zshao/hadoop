@@ -162,7 +162,7 @@ public class NameNodeAdapter {
     try {
       return ns.getBlockManager().getDatanodeManager().getDatanode(id);
     } finally {
-      ns.readUnlock();
+      ns.readUnlock("getDatanode");
     }
   }
   

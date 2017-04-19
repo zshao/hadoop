@@ -1041,7 +1041,7 @@ public class BlockManager {
       namesystem.checkOperation(OperationCategory.READ);
       return getBlocksWithLocations(datanode, size);  
     } finally {
-      namesystem.readUnlock();
+      namesystem.readUnlock("getBlocks");
     }
   }
 
@@ -1356,7 +1356,7 @@ public class BlockManager {
       blocksToReplicate = neededReplications
           .chooseUnderReplicatedBlocks(blocksToProcess);
     } finally {
-      namesystem.writeUnlock();
+      namesystem.writeUnlock("computeReplicationWork");
     }
     return computeReplicationWorkForBlocks(blocksToReplicate);
   }
@@ -1437,7 +1437,7 @@ public class BlockManager {
         }
       }
     } finally {
-      namesystem.writeUnlock();
+      namesystem.writeUnlock("computeReplicationWorkForBlocks");
     }
 
     final Set<Node> excludedNodes = new HashSet<Node>();
@@ -1526,7 +1526,7 @@ public class BlockManager {
         }
       }
     } finally {
-      namesystem.writeUnlock();
+      namesystem.writeUnlock("computeReplicationWorkForBlocks");
     }
 
     if (blockLog.isInfoEnabled()) {
@@ -1750,7 +1750,7 @@ public class BlockManager {
           }
         }
       } finally {
-        namesystem.writeUnlock();
+        namesystem.writeUnlock("processPendingReplications");
       }
       /* If we know the target datanodes where the replication timedout,
        * we could invoke decBlocksScheduled() on it. Its ok for now.
@@ -1876,7 +1876,7 @@ public class BlockManager {
       storageInfo.receivedBlockReport();
     } finally {
       endTime = Time.monotonicNow();
-      namesystem.writeUnlock();
+      namesystem.writeUnlock("processReport");
     }
 
     if (invalidatedBlocks != null) {
@@ -1963,7 +1963,7 @@ public class BlockManager {
         }
       }
     } finally {
-      namesystem.writeUnlock();
+      namesystem.writeUnlock("rescanPostponedMisreplicatedBlocks");
       long endPostponedMisReplicatedBlocksCount =
           getPostponedMisreplicatedBlocksCount();
       LOG.info("Rescan of postponedMisreplicatedBlocks completed in " +
@@ -2794,7 +2794,7 @@ public class BlockManager {
           break;
         }
       } finally {
-        namesystem.writeUnlock();
+        namesystem.writeUnlock("processMisReplicatesAsync");
         // Make sure it is out of the write lock for sufficiently long time.
         Thread.sleep(sleepDuration);
       }
@@ -3382,7 +3382,7 @@ public class BlockManager {
             repl.decommissionedAndDecommissioning(), oldExpectedReplicas);
       }
     } finally {
-      namesystem.writeUnlock();
+      namesystem.writeUnlock("updateNeededReplications");
     }
   }
 
@@ -3448,7 +3448,7 @@ public class BlockManager {
         return 0;
       }
     } finally {
-      namesystem.writeUnlock();
+      namesystem.writeUnlock("invalidateWorkForOneNode");
     }
     blockLog.info("BLOCK* {}: ask {} to delete {}", getClass().getSimpleName(),
         dn, toInvalidate);
@@ -3657,7 +3657,7 @@ public class BlockManager {
       this.updateState();
       this.scheduledReplicationBlocksCount = workFound;
     } finally {
-      namesystem.writeUnlock();
+      namesystem.writeUnlock("computeDatanodeWork");
     }
     workFound += this.computeInvalidateWork(nodesToProcess);
     return workFound;
@@ -3839,7 +3839,7 @@ public class BlockManager {
               action = queue.poll();
             } while (action != null);
           } finally {
-            namesystem.writeUnlock();
+            namesystem.writeUnlock("processQueue");
             metrics.addBlockOpsBatched(processed - 1);
           }
         } catch (InterruptedException e) {

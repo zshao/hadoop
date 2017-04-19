@@ -25,17 +25,23 @@ public interface RwLock {
   /** Release read lock. */
   public void readUnlock();
 
+  /** Release read lock. */
+  public void readUnlock(String opName);
+
   /** Check if the current thread holds read lock. */
   public boolean hasReadLock();
 
   /** Acquire write lock. */
   public void writeLock();
-  
+
   /** Acquire write lock, unless interrupted while waiting  */
   void writeLockInterruptibly() throws InterruptedException;
 
   /** Release write lock. */
   public void writeUnlock();
+
+  /** Release write lock. */
+  public void writeUnlock(String opName);
 
   /** Check if the current thread holds write lock. */
   public boolean hasWriteLock();
